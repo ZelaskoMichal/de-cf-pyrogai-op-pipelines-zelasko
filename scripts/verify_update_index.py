@@ -10,11 +10,11 @@ import re
 def list_files_in_dir(path: str = "./src/template_pipelines/config/") -> list[str]:
     return [f for f in listdir(path) if isfile(join(path, f))]
 
-def load_json(index_path: str = "../index.json") -> dict:
+def load_json(index_path: str = "index.json") -> dict:
     index_file = open(file=index_path, mode="r")
     return json.load(fp=index_file)
 
-def open_new_index_file(index_path: str = "../index.json"):
+def open_new_index_file(index_path: str = "index.json"):
     new_index_path = index_path[:-5] + "_new" + index_path[-5:]
     return open(file=new_index_path, mode="w")
 
@@ -195,7 +195,7 @@ def complete_missing_pipelines(missing_pipelines: list, index_json: dict, path: 
 if __name__ == "__main__":
 
     path = "./src/template_pipelines/config/"
-    index_path = "../index.json"
+    index_path = "index.json"
 
     files_list = list_files_in_dir(path=path)
     index_json = load_json(index_path=index_path)
