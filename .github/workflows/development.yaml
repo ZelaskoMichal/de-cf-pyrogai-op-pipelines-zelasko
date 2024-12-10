@@ -110,7 +110,7 @@ jobs:
     steps:
       - name: Echo AML
         run: |
-          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt' ] then;
+          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt' ]; then
             echo 'true'
           fi
           echo 'AML'
@@ -122,7 +122,7 @@ jobs:
     steps:
       - name: Echo DBR
         run: |
-          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt' ] then;
+          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt' ]; then
             echo 'true'
           fi
           echo 'DBR'
@@ -134,7 +134,7 @@ jobs:
     steps:
       - name: Echo Vertex
         run: |
-          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt' ] then;
+          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt' ]; then
             echo 'true'
           fi
           echo 'Vertex'
