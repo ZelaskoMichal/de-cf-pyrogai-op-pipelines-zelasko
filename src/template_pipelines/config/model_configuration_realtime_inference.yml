@@ -1,0 +1,4 @@
+name: realtime_inference_configuration
+config:
+  - model_runtime: inference
+    model_set_name: realtime_inference_models

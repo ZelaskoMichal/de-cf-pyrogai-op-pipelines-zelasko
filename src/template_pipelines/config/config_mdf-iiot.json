@@ -1,0 +1,5 @@
+{
+    "model_name": "mdf_model",
+    "model_flavor": "sklearn",
+    "model_type": "categorical"
+}

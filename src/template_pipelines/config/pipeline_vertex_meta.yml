@@ -1,0 +1,39 @@
+name: vertex_meta
+description: Demonstrates logging metadata when running pipeline on Vertex AI platform.
+experiment: template_meta
+runtime: runtime_vertex_meta
+compute: small
+scope: vertex-meta
+platforms:
+    - Vertex
+    - Local
+input_output_slots:
+-   name: metrics
+    type: basic
+-   name: params
+    type: basic
+-   name: artifact
+    type: kfp_artifact
+    kfp_type: Plot
+steps:
+
+-   name: init_metadata
+    class: template_pipelines.steps.vertex_meta.init_metadata:InitMetadata
+    outputs:
+        - metrics
+        - params
+        - artifact
+
+-   name: log_metadata
+    class: template_pipelines.steps.vertex_meta.log_metadata:LogMetadata
+    inputs:
+        - metrics
+        - params
+        - artifact
+    run_after:
+    - init_metadata
+
+-   name: retrieve_metadata
+    class: template_pipelines.steps.vertex_meta.retrieve_metadata:RetrieveMetadata
+    run_after:
+    - log_metadata

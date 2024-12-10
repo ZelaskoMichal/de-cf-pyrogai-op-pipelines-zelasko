@@ -1,0 +1,1 @@
+pyrogai[azureml,local] @ git+https://github.com/procter-gamble/de-cf-pyrogai@v1.5.1

@@ -1,0 +1,22 @@
+{{ if (.Values.ipa.enable_kubetail) }}
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-kubetail-conf
+  labels:
+    app.kubernetes.io/name: kubetail
+    app.kubernetes.io/instance: kubetail
+    app.kubernetes.io/managed-by: Helm
+    release: {{ .Release.Name }}
+data:
+  config.yaml: |
+    addr: :4000
+    auth-mode: cluster
+    csrf:
+      secret: BigSecreT
+    session:
+      secret: BigSecreT
+    base-path: {{ if eq .Release.Name "prod" }}/{{ .Release.Namespace }}-kubetail{{ else }}/{{ .Release.Namespace }}-kubetail-nonprod/{{ .Release.Name }}{{ end }}
+{{ end }}

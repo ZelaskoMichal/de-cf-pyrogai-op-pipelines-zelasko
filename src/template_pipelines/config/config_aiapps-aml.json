@@ -1,0 +1,34 @@
+{  
+    "aiapps_outputs_files": {
+        "file_1": {
+            "name": "results_options.json",
+            "step_name": "score_data",
+            "directory": "insights"
+        },
+        "file_2": {
+            "name": "confusion_matrix.json",
+            "step_name": "score_data",
+            "directory": "insights"
+        },
+        "file_3": {
+            "name": "precision_recall_curve.json",
+            "step_name": "score_data",
+            "directory": "insights"
+        },
+        "file_4": {
+            "name": "roc_curve.json",
+            "step_name": "score_data",
+            "directory": "insights"
+        },
+        "file_5": {
+            "name": "validation_predictions.csv",
+            "step_name": "score_data",
+            "directory": "insights"
+        },
+        "file_6": {
+            "name": "validation_predictions.json",
+            "step_name": "score_data",
+            "directory": "insights"
+        }
+    }
+}

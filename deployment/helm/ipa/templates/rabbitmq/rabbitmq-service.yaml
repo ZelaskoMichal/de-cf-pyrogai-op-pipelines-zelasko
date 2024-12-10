@@ -1,0 +1,23 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-rabbitmq
+  labels:
+    app: {{ .Chart.Name }}
+    component: rabbitmq
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: ClusterIP
+  ports:
+  - name: api
+    port: 15672
+    protocol: TCP
+  - name: auth
+    port: 5672
+    protocol: TCP
+  selector:
+    app: {{ .Chart.Name }}-rabbitmq
+    release: {{ .Release.Name }}
+{{ end }}

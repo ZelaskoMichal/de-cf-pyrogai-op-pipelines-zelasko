@@ -1,0 +1,4 @@
+name: mdf_configuration
+config:
+  - model_runtime: mdf
+    model_set_name: mdf_models

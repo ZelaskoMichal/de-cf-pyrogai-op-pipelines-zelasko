@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-envvars
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  # IPA-specific environment variables
+  {{- range $key, $value := .Values.envvars }}
+  {{ $key }}: {{ $value }}
+  {{- end }}
+  {{- if eq (default .Values.ipa.enable_ipazero false) true }}
+  # IpaZero-specific environment variables
+  IPAZERO_MANAGER_QUEUE_CHECKS_PERIOD_S: "10"
+  IPAZERO_MAX_CONSUMERS_COUNT_apinorm: "40"
+  IPAZERO_MAX_CONSUMERS_COUNT_batchbig: "10"
+  IPAZERO_MIN_CONSUMERS_COUNT_apinorm: {{ if hasPrefix "us-" .Release.Name }}"1"{{ else }}"0"{{ end }}
+  IPAZERO_MIN_CONSUMERS_COUNT_batchbig: "0"
+  IPAZERO_NAMESPACE: "{{ .Release.Namespace }}"
+  IPAZERO_RABBITMQ_SERV: "{{ .Release.Name }}-{{ .Chart.Name }}-rabbitmq"
+  IPAZERO_REDIS_SERV: "{{ .Release.Name }}-{{ .Chart.Name }}-redis"
+  IPAZERO_LABEL_SELECTOR: "release = {{ .Release.Name }}"  # override!
+  IPAZERO_PARENT_JOB: ""
+  IPAZERO_JOB_TEMPLATE_PATH: ""
+  IPAZERO_SERVICE_TEMPLATE_PATH: "{{ .Values.ipazero.config_dir_templates }}/consumer-service-template.yaml.j2"
+  IPAZERO_CONSUMER_MAX_WAIT_S: "900"
+  IPAZERO_SERVICE_NAME_TEMPLATE: "{{ .Release.Name }}-sapi-{{`{task_label}`}}"
+  ENV_NAME: "{{ .Release.Name }}"
+  {{- end }}

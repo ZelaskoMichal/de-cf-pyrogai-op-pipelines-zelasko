@@ -1,0 +1,63 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-rabbitmq
+  labels:
+    app: {{ .Chart.Name }}
+    component: rabbitmq
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      release: {{ .Release.Name }}
+      app: {{ .Chart.Name }}-rabbitmq
+  template:
+    metadata:
+      name: {{ .Release.Name }}-{{ .Chart.Name }}-rabbitmq
+      labels:
+        release: {{ .Release.Name }}
+        app: {{ .Chart.Name }}-rabbitmq
+    spec:
+      securityContext:
+        fsGroup: 999        # rabbitmq user id which will have access to mounted persistent volume
+      volumes:
+      - name: {{ .Release.Name }}-{{ .Chart.Name }}-rabbitmq-persistent-data
+        {{ if or ( eq (.Release.Name) "prod" ) 
+          (eq (.Release.Name) "stg") 
+          ( eq (default .Values.ipazero.enable_persistence_on_pr false) true ) }}
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-{{ .Chart.Name }}-rabbitmqstorage
+        {{ else }}
+        emptyDir: {}
+        {{ end }}
+      - name: tmp-folder
+        emptyDir: {}
+
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.13.3
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 999
+        ports:
+        - containerPort: 15672
+        - containerPort: 5672
+        resources: {}
+        env:
+          - name: RABBITMQ_MNESIA_DIR
+            value: /var/data/rabbitmq
+          - name: RABBITMQ_NODENAME
+            value: rabbitmq_server@localhost  # needed for persistence read after rabbitmq restart
+        volumeMounts:
+          - mountPath: /var/data/rabbitmq
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-rabbitmq-persistent-data
+          - mountPath: /tmp
+            name: tmp-folder
+  {{ end }}

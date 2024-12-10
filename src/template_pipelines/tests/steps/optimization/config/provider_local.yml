@@ -1,0 +1,9 @@
+name: Test Local Provider
+platform: Local
+environment:
+  - local
+computes:
+  small:
+    local_compute: local_compute
+details:
+  workspace_dir: .workspace

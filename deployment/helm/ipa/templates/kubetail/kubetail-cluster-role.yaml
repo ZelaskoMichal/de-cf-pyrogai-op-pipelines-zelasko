@@ -1,0 +1,34 @@
+{{- /* Commenting this out for now - needs to be created globally
+{{ if (.Values.ipa.enable_kubetail) }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: kubetail
+  labels:
+    app.kubernetes.io/name: kubetail
+    app.kubernetes.io/instance: kubetail
+    app.kubernetes.io/managed-by: Helm
+    release: {{ .Release.Name }}
+rules:
+- apiGroups:
+  - ""
+  - apps
+  - batch
+  resources:
+  - cronjobs
+  - daemonsets
+  - deployments
+  - jobs
+  - namespaces
+  - nodes
+  - pods
+  - pods/log
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+{{ end }}
+End of commented out section */}}

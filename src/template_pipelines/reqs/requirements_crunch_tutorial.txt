@@ -1,0 +1,8 @@
+pyrogai[azureml,dbr,local] @ git+https://github.com/procter-gamble/de-cf-pyrogai@v1.5.1
+nas-crunch-client @ git+https://github.com/procter-gamble/DA-PP-PDA-CRUNCH-CLIENT.git@master
+
+# the following requirements are not necessary for execution of the PyrogAI pipeline on AML, DBR or local
+# but have to be installed in CRUNCH environment, read the README for more details
+# this requirements file contains requirements for both the PyrogAI pipeline and the CRUNCH jobs as a simplification for
+# the purposes of the tutorial
+pandas

@@ -1,0 +1,63 @@
+{
+    "quickstart": {
+        "data_dir": "data",
+        "features": [
+            "feature1",
+            "feature2",
+            "feature3",
+            "feature4",
+            "feature5"
+        ],
+        "n_estimators": 100,
+        "random_state": 42
+    },
+    "great_expectations": {
+        "suites": {
+            "input_data.critical": {
+                "file": "data.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "feature1",
+                            "mostly": 0.9
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "feature2",
+                            "mostly": 0.9
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "feature3",
+                            "mostly": 0.9
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "feature4",
+                            "mostly": 0.9
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "feature5",
+                            "mostly": 0.9
+                        }
+                    }
+                ]
+            }
+        },
+        "steps": {
+            "data_validation_after_preprocessing": [
+                "input_data.critical"
+            ]
+        }
+    }
+}

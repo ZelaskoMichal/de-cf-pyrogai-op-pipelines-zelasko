@@ -1,0 +1,11 @@
+requests>=2.28
+jupyter==1.0.0
+pyrogai[azureml,local,dbr,vertex] @ git+https://github.com/procter-gamble/de-cf-pyrogai@v1.5.1
+pyyaml
+pydantic
+mlflow>=2.2.0
+scikit-learn==1.1.2
+db_dtypes
+matplotlib==3.7.1
+seaborn==0.12.2
+torch==1.12.1

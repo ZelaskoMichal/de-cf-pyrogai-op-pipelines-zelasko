@@ -1,0 +1,58 @@
+on:
+  pull_request:
+    types: [ closed ]
+    branches:
+      - main
+  push:
+    paths:
+      - "index.json"
+  workflow_dispatch:
+
+name: AI Catalog PROD update after PR merge to main branch or after changes in index.json file.
+
+jobs:
+  run_python_script:
+    name: Put index.json data into AI apps Database
+    runs-on: ["self-hosted", "X64", "Linux", "az-org-da-prod"]
+
+    if: github.event.pull_request.merged == true || github.event_name == 'push'
+
+    steps:
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+
+      - name: Install Python Dependencies
+        run: |
+          set -e
+          pip install -U pip
+          pip install uv
+          uv pip install --system -r requirements-scripts.txt
+
+      # Check if the proper secrets/vars have been set
+      - name: Check all secrets/vars
+        env:
+          AI_CATALOG_API_CI_ACCESS_KEY_PROD: ${{ secrets.AI_CATALOG_API_CI_ACCESS_KEY_PROD }}
+          AI_CATALOG_API_URL_PROD: ${{ vars.AI_CATALOG_API_URL_PROD }}
+        run: |
+          if [[ ! AI_CATALOG_API_CI_ACCESS_KEY_PROD ]]; then
+              echo "secrets.AI_CATALOG_API_CI_ACCESS_KEY_PROD was not found"
+              exit 1
+          fi
+          if [[ ! AI_CATALOG_API_URL_PROD ]]; then
+              echo "vars.AI_CATALOG_API_URL_PROD was not found"
+              exit 1
+          fi
+
+      - name: Run Python script
+        run: python scripts/add_new_pipelines.py
+        env:
+          API_CI_ACCESS_KEY: ${{ secrets.AI_CATALOG_API_CI_ACCESS_KEY_PROD }}
+          API_URL: ${{ vars.AI_CATALOG_API_URL_PROD }}

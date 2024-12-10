@@ -1,0 +1,30 @@
+computes:
+    small:
+        name: default2
+        type: amlcompute
+        details:
+            idle_time_before_scale_down: 300
+            max_instances: 8
+            min_instances: 0
+            size: STANDARD_D4_V3
+            tier: low_priority
+details:
+    client_info:
+        resource_group: AZ-RG-AIP-MLWPYROGAICSE
+        subscription_id: 27c0a03b-f477-4c6d-b9a9-608e91d2e83b
+        workspace_name: mlwpyrogaicse
+        datastore_name: workspaceblobstore
+        storage_account: mlwpyrogaicse4e8fyksa
+        container_name: azureml-blobstore-5a4bef7e-1bf4-4448-913c-e5b27ab9db0a
+        keyvault_name: mlwpyrogaicse4e8fykkv
+    provider_info:
+        pipeline_dir: .workspace
+name: AML Provider
+platform: AML
+environment:
+  - dev
+  - stg
+  - prod
+runtimes:
+    runtime_optimization:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_optimization.txt

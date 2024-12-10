@@ -1,0 +1,104 @@
+ipa:
+  # Where to mount (inside the containers) the k8s job templates
+  config_dir_templates: "/etc/k8s_jinja_templates"
+  # Set to false if for some reason you don't want to create RBAC rules (unlikely)
+  create_rbac: true
+  # Virtual environment command
+  venv_activate_cmd: "source /virtualenvs/ipa/bin/activate"
+  # Image pull policy [Always, IfNotPresent]
+  image_pull_policy: "IfNotPresent"
+  # Service account
+  service_account: "workload-sa"
+  # Pipelines to include - leave as null to include everything, otherwise it's a list of strings
+  include_published_pipelines: null
+  # Name of module holding custom endpoints code - if null/not specified, no custom endpoints
+  custom_endpoints_module: null
+  # Name of FastAPI factory callable - if null/not specified, no custom FastAPI callable will be used
+  fastapi_factory_callable: null
+  # Enable kubetail
+  enable_kubetail: false
+  # Horizontal Pod autoscaler
+  horizontal_autoscaler_envs:
+    dev:
+      min_replicas: 1
+      max_replicas: 1
+      avg_cpu: 50
+      avg_memory: 50
+    stg:
+      min_replicas: 1
+      max_replicas: 5
+      avg_cpu: 50
+      avg_memory: 50
+    prod:
+      min_replicas: 1
+      max_replicas: 5
+      avg_cpu: 50
+      avg_memory: 50
+  # Requested resources and limits
+  resources:
+    dev:
+      requests:
+        memory: "384Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "1"
+    stg:
+      requests:
+        memory: "384Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "1"
+    prod:
+      requests:
+        memory: "384Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "1"
+  # When to enable IPA debug, on by default on `dev` (Pull Requests)
+  # Note, enabling IPA debug increases logs verbosity, and internal server errors will return a stacktrace to the client (commonly undesired in production)
+  debug:
+    dev: true
+    stg: false
+    prod: false
+
+ipazero:
+  # Where to mount (inside the containers) the k8s job templates
+  config_dir_templates: "/etc/k8s_jinja_templates"
+  # If true, a simple tasks sender is also added (only for debug)
+  enable_sender_debug: false
+  # Set to false if for some reason you don't want to create RBAC rules (unlikely)
+  create_rbac: true
+  # Virtual environment command
+  venv_activate_cmd: "source /virtualenvs/ipa/bin/activate"
+  # Delete k8s consumer jobs X seconds after completion (leave them a bit for debugging)
+  ttl_after_finished_s: 1800
+  # Command to run before queue manager
+  queue_manager_pre_cmd: "" # FIXME: COMMENTED OUT KJOZEF
+  # Available IpaZero queues
+  queues:
+    - name: batchbig
+      memory: "16Gi"
+      cpu: "4000m"
+    - name: apinorm
+      memory: "4Gi"
+      cpu: "1000m"
+
+istio:
+  # String executing the command that waits for Istio to be up
+  wait_for_istio: "/etc/istio_scripts/wait-for-istio.sh"
+  # String executing the command to execute to quit Istio
+  quit_istio: "/etc/istio_scripts/quit-istio.sh"
+
+init:
+  # Override this from the cmdline
+  gcloud: {}
+  # Override this from the cmdline - --set init.azure....
+  azure: {}
+  # Override this from the cmdline
+  databricks: {}
+
+envvars:
+  # add custom environment variables

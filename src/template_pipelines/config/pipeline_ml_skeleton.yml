@@ -1,0 +1,43 @@
+name: ml_skeleton
+description: Empty ML training pipeline, using the same steps as the ml_training one. Useful for new ML projects, so that you do not have to start from a blank page. 
+experiment: exp_ml
+compute: small
+runtime: runtime_ml_skeleton
+scope: ml-skeleton
+platforms:
+    - AML
+    - Local
+    - Vertex
+steps:
+-   class: template_pipelines.steps.ml_skeleton.sk_data_preprocessing:Preprocessing
+    name: preprocessing
+
+-   class: template_pipelines.steps.ml_skeleton.sk_feature_creation:FeatureCreation
+    name: feature_creation
+    run_after:
+    - preprocessing
+
+-   class: aif.pyrogai.steps:DqStep
+    name: data_validation_after_feature_creation
+    run_after:
+    - feature_creation
+
+-   class: template_pipelines.steps.ml_skeleton.sk_imputation_scaling:ImputationScaling
+    name: imputation_scaling
+    run_after:
+    - data_validation_after_feature_creation
+
+-   class: aif.pyrogai.steps:DqStep
+    name: data_validation_after_imputation
+    run_after:
+    - imputation_scaling
+
+-   class: template_pipelines.steps.ml_skeleton.sk_model_training:ModelTraining
+    name: model_training
+    run_after:
+    - data_validation_after_imputation
+
+-   class: template_pipelines.steps.ml_skeleton.sk_model_evaluation:ModelEvaluation
+    name: model_evaluation
+    run_after:
+    - model_training

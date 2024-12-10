@@ -1,0 +1,64 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-redis
+  labels:
+    app: {{ .Chart.Name }}
+    component: redis
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      release: {{ .Release.Name }}
+      app: {{ .Chart.Name }}-redis
+  template:
+    metadata:
+      name: {{ .Release.Name }}-{{ .Chart.Name }}-redis
+      labels:
+        release: {{ .Release.Name }}
+        app: {{ .Chart.Name }}-redis
+    spec:
+      securityContext:
+        fsGroup: 1        # redis user id which will have access to mounted persistent volume
+      volumes:
+        - name: redis-config
+          configMap:
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-redis-config
+        - name: {{ .Release.Name }}-{{ .Chart.Name }}-redis-persistent-data
+          {{ if or ( eq (.Release.Name) "prod" )
+            (eq (.Release.Name) "stg")
+            ( eq (default .Values.ipazero.enable_persistence_on_pr false) true ) }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-{{ .Chart.Name }}-redisstorage
+          {{ else }}
+          emptyDir: {}
+          {{ end }}
+        - name: tmp-folder
+          emptyDir: {}
+
+      containers:
+      - name: redis
+        image: redis/redis-stack-server:7.4.0-v0
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1
+        ports:
+        - containerPort: 6379
+        resources: {}
+        command: [ "redis-stack-server" ]
+        args: [ "--include","/usr/local/etc/redis/redis.conf" ]
+        volumeMounts:
+          - mountPath: /var/data/redis
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-redis-persistent-data
+          - mountPath: /usr/local/etc/redis/
+            name: redis-config
+          - mountPath: /tmp
+            name: tmp-folder
+  {{ end }}

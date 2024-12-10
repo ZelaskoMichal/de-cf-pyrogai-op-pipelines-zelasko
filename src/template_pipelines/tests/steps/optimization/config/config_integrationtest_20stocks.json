@@ -1,0 +1,7 @@
+{
+    "data_dir": "test_data/L3_integration_test/20stocks/raw_data",
+    "integration_test_auxiliary_data_dir": "test_data/L3_integration_test/20stocks/auxiliary_data",
+
+    "expected_objfn_value": 9911.73,
+    "max_formulation_build_time": 60.0
+}

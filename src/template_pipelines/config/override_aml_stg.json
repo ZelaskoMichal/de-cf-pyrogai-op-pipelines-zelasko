@@ -1,0 +1,14 @@
+{
+    "iocontext": {
+        "local_workdir": "/tmp/pyrogai_run/{run_id}",
+        "remote_workdir": "amlworkdir:workdir:runs/{environment}/{utc_year}/{utc_month}/{utc_day}/{utc_full_dashes}_{run_id}"
+    },
+    "meta_iocontext": {
+        "local_workdir": "/tmp/pyrogai_run_meta/{run_id}",
+        "remote_workdir": "amlworkdir:workdir:runs/{environment}/meta/{run_id}"
+    },
+    "platform": "local",
+    "workdir": {
+        "local_workdir": "/tmp/pyrogai_data"
+    }
+}

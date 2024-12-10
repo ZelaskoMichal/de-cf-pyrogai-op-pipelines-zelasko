@@ -1,0 +1,138 @@
+{
+  "rules": {
+    "bq_io": ["src/template_pipelines/steps/bq_io/*", "*_bq_io*", "*bq-io*"],
+    "ml_inference": [
+      "src/template_pipelines/steps/ml_inference/*",
+      "*_ml_inference*",
+      "*ml-inference*"
+    ],
+    "ml_iris": [
+      "src/template_pipelines/steps/ml_iris/*",
+      "*_ml_iris*",
+      "*ml-iris*"
+    ],
+    "ml_observability": [
+      "src/template_pipelines/steps/ml_observability/*",
+      "*_ml_observability*",
+      "*ml-observability*"
+    ],
+    "ml_skeleton": [
+      "src/template_pipelines/steps/ml_skeleton/*",
+      "*_ml_skeleton*",
+      "*ml-skeleton*"
+    ],
+    "ml_training": [
+      "src/template_pipelines/steps/ml_training/*",
+      "*_ml_training*",
+      "*ml-training*"
+    ],
+    "optimization": [
+      "src/template_pipelines/steps/optimization/*",
+      "*_optimization*",
+      "*optimization*"
+    ],
+    "upload_data": [
+      "src/template_pipelines/steps/upload_data/*",
+      "*_upload_data*",
+      "*upload-data*"
+    ],
+    "operations": [
+      "src/template_pipelines/steps/operations/*",
+      "*_operations*",
+      "*operations*"
+    ],
+    "github_actions": [".github/*"],
+    "tests": ["src/template_pipelines/tests/*"],
+    "gen_ai_product_opt": [
+      "src/template_pipelines/steps/gen_ai_product_opt/*",
+      "*_gen_ai_product_opt*",
+      "*gen_ai_product_opt*"
+    ],
+    "aiapps_aml": [
+      "src/template_pipelines/steps/aiapps_aml/*",
+      "*_aiapps_aml*",
+      "*aiapps_aml*"
+    ],
+    "aiapps_dbr": [
+      "src/template_pipelines/steps/aiapps_dbr/*",
+      "*_aiapps_dbr*",
+      "*aiapps_dbr*"
+    ],
+    "hello_gen_ai": [
+      "src/template_pipelines/steps/hello_gen_ai/*",
+      "*_hello_gen_ai*",
+      "*hello_gen_ai*"
+    ],
+    "vertex_meta": [
+      "src/template_pipelines/steps/vertex_meta/*",
+      "*_vertex_meta*",
+      "*vertex_meta*"
+    ],
+    "quickstart": [
+      "src/template_pipelines/steps/quickstart/*",
+      "*_quickstart*",
+      "*quickstart*"
+    ],
+    "time_series": [
+      "src/template_pipelines/steps/time_series/*",
+      "*_time_series*",
+      "*time_series*"
+    ],
+    "blob_data": [
+      "src/template_pipelines/steps/blob_data/*",
+      "*_blob_data*",
+      "*blob_data*"
+    ],
+    "aml_sweep": [
+      "src/template_pipelines/steps/aml_sweep/*",
+      "*_aml_sweep*",
+      "*aml_sweep*"
+    ],
+    "realtime_inference": [
+      "src/template_pipelines/steps/realtime_inference/*",
+      "*_realtime_inference*",
+      "*realtime_inference*"
+    ],
+    "rl_advertising": [
+      "src/template_pipelines/steps/rl_advertising/*",
+      "*_rl_advertising*",
+      "*rl-advertising*"
+    ],
+    "mdf_iiot": [
+      "src/template_pipelines/steps/mdf_iiot/*",
+      "*mdf_iiot*",
+      "*mdf-iiot*",
+      "src/template_pipelines/adapter/*"
+    ],
+    "orchestration": [
+      "src/template_pipelines/steps/orchestration/*",
+      "*_orchestration*",
+      "*orchestration*"
+    ],
+    "video_analysis": [
+      "src/template_pipelines/steps/video_analysis/*",
+      "*_video_analysis*",
+      "*video-analysis*"
+    ],
+    "doc_vectorization": [
+      "src/template_pipelines/steps/doc_vectorization/*",
+      "*_doc_vectorization*",
+      "*doc-vectorization*"
+    ],
+    "crunch_tutorial": [
+      "src/template_pipelines/steps/crunch_tutorial/*",
+      "*_crunch_tutorial*",
+      "*crunch_tutorial*"
+    ],
+    "gu_translation": [
+      "src/template_pipelines/steps/gu_translation/*",
+      "*_gu_translation*",
+      "*gu-translation*"
+    ],
+    "eda_pipeline": [
+      "src/template_pipelines/steps/eda_pipeline/*",
+      "*_eda_pipeline*",
+      "*eda-pipeline*"
+    ]
+  }
+}

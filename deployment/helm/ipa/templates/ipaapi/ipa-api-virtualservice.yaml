@@ -1,0 +1,37 @@
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $.Release.Name }}-{{ $.Chart.Name }}-ipa-vs
+  namespace: {{ .Release.Namespace }}
+spec:
+  hosts:
+    - {{ .Values.init.azure.external_hostname }}
+  gateways:
+  - istio-gateways/ipa-gateway  # one Gateway for the entire cluster (hardcoded)
+  http:
+  - name: 'ipa'
+    match:
+    - uri:
+        # Prefix is the same as the namespace for the prod environment; otherwise, it's <namespace>-nonprod/<environment>
+        # The environment value can be `stg` for staging, or `dev-prXXX` for pull request number XXX
+        prefix: {{ if eq .Release.Name "prod" }}/{{ .Release.Namespace }}/{{ else }}/{{ .Release.Namespace }}-nonprod/{{ .Release.Name }}/{{ end }}
+    rewrite:
+      uri: '/'
+    route:
+    - destination:
+        host: {{ $.Release.Name }}-{{ $.Chart.Name }}-ipaapi
+        port:
+          number: 8182  # Port exposed by the above service
+{{ if (.Values.ipa.enable_kubetail) }}
+  - name: 'kubetail'
+    match:
+    - uri:
+        # URL construction is the same as the main IPA application, but with a -kubetail, or -kubetail-nonprod, appended to the first URL segment
+        prefix: {{ if eq .Release.Name "prod" }}/{{ .Release.Namespace }}-kubetail/{{ else }}/{{ .Release.Namespace }}-kubetail-nonprod/{{ .Release.Name }}/{{ end }}
+    route:
+    - destination:
+        host: {{ .Release.Name }}-{{ .Chart.Name }}-kubetailapi
+        port:
+          number: 4000  # Port exposed by the above service
+{{ end }}

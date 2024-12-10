@@ -1,0 +1,117 @@
+# This GitHub Actions workflow is configured to automatically notify designated users when either the pipeline from `workflows` completes on branches matching the pattern "update-pyrogai-20**".
+# It checks the completion status of these workflows and, if a workflow does not succeed, it triggers a notification for the responsible person.
+# This is done through a comment on the associated pull request, alerting about the need for potential intervention.
+
+name: Final Workflow Notifier
+
+on:
+  workflow_run:
+    workflows:
+      [
+        "P&G Continuous Winning (Continuous Integration) DEV",
+        "Deploy to AML",
+        "Deploy to DBR",
+        "e2e tests on vertex",
+      ]
+    types:
+      - completed
+    branches:
+      - "update-pyrogai-20**"
+
+jobs:
+  check-status-and-comment:
+    runs-on: ubuntu-latest
+    env:
+      WORKFLOW_OWNERS: >-
+        {
+          "P&G Continuous Winning (Continuous Integration) DEV": "@procter-gamble/aif-cse-template-pipeline-notifications",
+          "Deploy to AML": "@procter-gamble/aif-cse-template-pipeline-notifications",
+          "Deploy to DBR": "@procter-gamble/aif-cse-template-pipeline-notifications",
+          "e2e tests on vertex": "@procter-gamble/aif-cse-template-pipeline-notifications"
+        }
+    steps:
+      - name: Fetch code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.workflow_run.pull_requests[0].head.sha }}
+          token: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+          submodules: false
+          fetch-depth: 0
+
+      - name: Check previous workflow status and assign responsibility
+        id: check
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          conclusion="${{ github.event.workflow_run.conclusion }}"
+          workflow_owners_json=$(echo $WORKFLOW_OWNERS | jq -r .)
+          workflow_url="${{ github.event.workflow_run.html_url }}"
+          owner=$(echo "$workflow_owners_json" | jq -r --arg wn "$WORKFLOW_NAME" '.[$wn]')
+          if [ "$conclusion" != "success" ]; then
+              echo "report=This workflow '$WORKFLOW_NAME' maybe needs your attention $owner. View the workflow: $workflow_url" >> $GITHUB_ENV
+          else
+              echo "report=" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Create Pull Request comment
+        if: env.report != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          REPORT: ${{ env.report }}
+        run: |
+          comments_url="https://api.github.com/repos/${{ github.repository }}/issues/${ISSUE_NUMBER}/comments"
+          curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+            -X POST $comments_url \
+            -d "{\"body\": \"$REPORT\"}"
+          echo "comments_url=$comments_url" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Notify Teams Channel
+        if: env.report != ''
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL_FOR_BREAKING_CHANGES }}
+          REPORT: ${{ env.report }}
+        run: |
+          message="{\"text\": \"$REPORT\"}"
+          curl -H "Content-Type: application/json" -d "$message" $TEAMS_WEBHOOK_URL
+        shell: bash
+      
+      - name: Check if email has been sent
+        if: ${{ env.report != '' && env.PR_NUMBER != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          comments_url: ${{ env.comments_url }}
+        run: |
+          response=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" $comments_url)
+          comment="An email related to the PyrogAI auto-update issue and failed workflows has been sent successfully."
+          email_comments=$(echo "$response" | jq --arg comment "$comment" '.[] | select(.body | contains($comment))')
+          if [ -n "$email_comments" ]; then
+              echo "email_sent=yes" >> $GITHUB_ENV
+              echo "Yes! An email notification has been sent already."
+          else
+              echo "email_sent=no" >> $GITHUB_ENV
+              echo "No email notification has been sent yet."
+          fi
+          echo "comment=$comment" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Send email notification
+        if: ${{ env.report != '' && env.email_sent == 'no' }}
+        env:
+          SHAREPOINT_USERNAME: ${{ secrets.SHAREPOINT_USERNAME }}
+          SHAREPOINT_PASSWORD: ${{ secrets.SHAREPOINT_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          comments_url: ${{ env.comments_url }}
+        run: |
+          PR_URL=${{ github.server_url }}/${{ github.repository }}/issues/${PR_NUMBER}
+          WORKFLOWS="P&G Continuous Winning (Continuous Integration) DEV,Deploy to AML,Deploy to DBR,e2e tests on vertex"
+          cd scripts
+          python send_email.py --username $SHAREPOINT_USERNAME --password $SHAREPOINT_PASSWORD --pr-url $PR_URL --workflows "$WORKFLOWS"
+          curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+            -X POST $comments_url \
+            -d "{\"body\": \"${{ env.comment }}\"}"
+        shell: bash

@@ -1,0 +1,36 @@
+name: time_series
+description: Gives a template pipeline which use time series data and show some mlflow capabilities
+experiment: time_series_template
+runtime: runtime_time_series
+compute: small
+scope: time-series
+
+input_output_slots:
+-   name: model_uri
+    type: basic
+
+
+steps:
+  - name: preprocess_data
+    class: template_pipelines.steps.time_series.preprocess_data:PreprocessDataStep
+
+  - name: train_model
+    class: template_pipelines.steps.time_series.train_model:TrainModelStep
+    run_after:
+    - preprocess_data
+    outputs:
+    - model_uri
+
+  - name: model_evaluation
+    class: template_pipelines.steps.time_series.model_evaluation:ModelEvaluationStep
+    run_after:
+    - train_model
+    inputs:
+    - model_uri
+
+  - name: prediction
+    class: template_pipelines.steps.time_series.prediction:PredictionStep
+    run_after:
+    - model_evaluation
+    inputs:
+    - model_uri

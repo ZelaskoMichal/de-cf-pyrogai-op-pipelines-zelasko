@@ -1,0 +1,9 @@
+{
+    "rl_advertising": {
+        "data_dir": "us_census_data",
+        "train_size": 0.9,
+        "dropout_levels": [0.01, 0.1, 0.2, 0.4],
+        "simulation_size": 5000,
+        "model_update_freq": 500
+    }
+}

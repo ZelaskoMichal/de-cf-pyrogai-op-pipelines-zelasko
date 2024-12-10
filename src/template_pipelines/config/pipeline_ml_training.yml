@@ -1,0 +1,111 @@
+name: ml_training
+description: Demonstrates a typical ML training pipeline. Uses a coupon redemption data set and implements an anomaly detection via autoencoders approach 
+experiment: exp_ml
+compute: small
+runtime: runtime_ml_training
+scope: ml-training
+platforms:
+    - AML
+    - Local
+    - DBR
+    - Vertex
+input_output_slots:
+-   name: campaigns.parquet
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/campaigns.parquet
+-   name: coupon_item_mapping.parquet
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/coupon_item_mapping.parquet
+-   name: coupon_redemption.parquet
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/coupon_redemption.parquet
+-   name: customer_demographics.parquet
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/customer_demographics.parquet
+-   name: customer_transactions.parquet
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/customer_transactions.parquet
+-   name: items.parquet
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/items.parquet
+-   name: impute_scaling_preprocessor
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/models/impute_scaling_preprocessor.pkl
+-   name: anomaly_model
+    type: cloudfile
+    url: cloud://{config.ml_training.data_dir}/models/anomaly_model.pth
+
+-   name: model_uri
+    type: basic
+
+-   name: kfp_md_plot
+    type: kfp_artifact
+    kfp_type: Plot
+
+-   name: kfp_ge_doc
+    type: kfp_artifact
+    kfp_type: HTML
+
+-   name: mlflow_ge_doc
+    artifact_path: great_expecation_docs
+    type: mlflow_artifact
+
+steps:
+-   name: preprocessing
+    class: template_pipelines.steps.ml_training.data_preprocessing:Preprocessing
+    inputs: 
+        - campaigns.parquet
+        - coupon_item_mapping.parquet
+        - coupon_redemption.parquet
+        - customer_demographics.parquet
+        - customer_transactions.parquet
+        - items.parquet
+-   name: feature_creation
+    class: template_pipelines.steps.ml_training.feature_creation:FeatureCreation
+    outputs:
+        - kfp_md_plot
+    run_after:
+    - preprocessing
+
+-   name: data_validation_after_feature_creation
+    class: template_pipelines.steps.ml_training.dv_after_feature_creation:DataValidationAfterFeatureCreationDqStep
+    outputs:
+        - kfp_ge_doc
+        - mlflow_ge_doc
+    run_after:
+    - feature_creation
+
+-   name: imputation_scaling
+    class: template_pipelines.steps.ml_training.imputation_scaling:ImputationScaling
+    outputs:
+        - kfp_md_plot
+        - impute_scaling_preprocessor
+    run_after:
+    - data_validation_after_feature_creation
+
+-   name: data_validation_after_imputation
+    class: template_pipelines.steps.ml_training.dv_after_imputation:DataValidationAfterImputationDqStep
+    outputs:
+        - kfp_ge_doc
+        - mlflow_ge_doc
+    run_after:
+    - imputation_scaling
+
+-   name: model_training
+    class: template_pipelines.steps.ml_training.model_training:ModelTraining
+    name: model_training
+    outputs:
+    - model_uri
+    - kfp_md_plot
+    - anomaly_model
+    run_after:
+    - data_validation_after_imputation
+
+-   name: model_evaluation
+    class: template_pipelines.steps.ml_training.model_evaluation:ModelEvaluation
+    inputs:
+    - model_uri
+    outputs:
+    - kfp_md_plot
+    run_after:
+    - model_training

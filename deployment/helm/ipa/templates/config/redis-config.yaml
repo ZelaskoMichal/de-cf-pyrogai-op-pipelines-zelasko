@@ -1,0 +1,23 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-redis-config
+  labels:
+    app: {{ .Chart.Name }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  redis.conf: |
+    # appending config to default redis config
+    # changes:
+    # additional changes applied:
+    #  - persistence activate
+    #  - persistence write journal update - save if 1 update was done in 10sec
+    #  - persistence data dir
+  
+    appendonly      yes
+    save      10 1  
+    dir      /var/data/redis
+    protected-mode no
+{{- end }}

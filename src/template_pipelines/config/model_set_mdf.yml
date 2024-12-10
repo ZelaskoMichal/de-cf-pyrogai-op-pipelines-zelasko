@@ -1,0 +1,4 @@
+name: mdf_models
+models:
+  - name: mdf_model
+    version: 1

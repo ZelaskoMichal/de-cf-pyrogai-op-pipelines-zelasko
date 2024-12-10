@@ -1,0 +1,17 @@
+apiVersion: v2
+name: ipa
+description: IPA API
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://ipa.pg.com/
+keywords:
+- ipa
+- api
+maintainers:
+- name: Marcin Miazga
+  url: https://github.com/miazgamm
+- name: Dario Berzano
+  url: https://github.com/dberzano
+sources:
+- https://github.com/procter-gamble/de-cf-pyrogai/ipa/deployment/helm/ipa

@@ -1,0 +1,74 @@
+################## dq_ge Pipeline Configuration ##################
+
+# This is a .yaml file containing the complete configuration for the dq_ge pipeline. Thanks to pyrogAI
+# it is possible to use both YAML and JSON configuration files together. I have chosen YAML to have the opportunity
+# to include comments for a clearer explanation of the DQ/GE step :)
+
+# Great expectations configuration
+# ----------------------------------------------------------------------------------------------------
+great_expectations: # this is needed to pyrogai knows where great expectations section is
+  # STEPS -> that section will contain the list of suites that will be executed.
+  # In other words, everything is autodetected and this is a fully zero-code solution
+  steps:
+    # everything under this step (initial_data_validation, 2nd step in our pipeline) will be executed,
+    # so for initial_data_validation we will run initial_data_validation.critical and initial_data_validation.warning suites
+    initial_data_validation:
+      # CRITICAL - stops pipeline because of raise an exception `CriticalDataQualityError`
+      - initial_data_validation.critical # name of our suite and level of warning
+      - initial_data_validation.warning
+    initial_data_validation_dq:
+      - initial_data_validation.critical
+      - initial_data_validation.warning
+
+    post_processing_data_validation:
+      # WARNING - it warns us about certain inconsistencies but does not stop us
+      - post_processing_data_validation.warning
+      - post_processing_data_validation.critical
+    post_processing_data_validation_dq:
+      - post_processing_data_validation.warning
+      - post_processing_data_validation.critical
+
+  suites: # section where we put configuration for your suites from above
+    initial_data_validation.critical:
+      file: data_set_1.csv # path to file which you will check
+      expectations:
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: A
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: B
+            min_value: 0
+            max_value: 100
+    initial_data_validation.warning:
+      file: data_set_2.csv # path to file which you will check
+      expectations:
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: X
+        - expectation_type: expect_table_row_count_to_be_between
+          kwargs:
+            min_value: 100
+            max_value: 200
+    post_processing_data_validation.warning:
+      file: processed_df1.csv
+      expectations:
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: sum
+    post_processing_data_validation.critical:
+      file: processed_df2.csv
+      expectations:
+        - expectation_type: expect_column_values_to_not_be_in_set
+          kwargs:
+            column: X
+            value_set:
+              - 999
+              - some_random_str_value
+# ----------------------------------------------------------------------------------------------------
+
+# --------------------------------------- How to know what `expectation_type:` can I use? ------------
+# The Expectations Gallery you can find on offical page for GE -> https://greatexpectations.io/expectations
+# Let's take for example `expect_column_values_to_match_regex`. By typing it into search bar on GE website we can find there
+# all information about this expectation, for example what arguments are accepted or required
+# ----------------------------------------------------------------------------------------------------

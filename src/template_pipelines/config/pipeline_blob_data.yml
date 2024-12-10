@@ -1,0 +1,31 @@
+name: blob_data
+description: This pipeline helps with getting data from Blob.
+compute: small
+experiment: template
+runtime: runtime_blob_data
+scope: blob-data
+platforms:
+  - Local
+  - AML
+  - DBR
+
+params:
+  folder_path:
+  file_path: CouponData/campaigns.parquet
+  dbr_table: default.test_table
+
+input_output_slots:
+  - name: blob_folder
+    type: cloudfile
+    url: abfss://{config.container_name}@{config.storage_name}.dfs.core.windows.net/{runtime_parameters.folder_path}
+    is_dir: true
+  - name: blob_file
+    type: cloudfile
+    url: abfss://{config.container_name}@{config.storage_name}.dfs.core.windows.net/{runtime_parameters.file_path}
+
+steps:
+  - name: loading_blob_data
+    class: template_pipelines.steps.blob_data.loading_blob_data_step:LoadingBlobDataStep
+    inputs:
+      - blob_folder
+      - blob_file

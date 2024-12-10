@@ -1,0 +1,43 @@
+computes:
+    small:
+        new_cluster:
+            node_type_id: Standard_DS3_v2
+            num_workers: 1
+            spark_conf:
+                parquet.enable.summary-metadata: false
+                spark.driver.maxResultSize: 4g
+                spark.sql.sources.commitProtocolClass: org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
+            spark_env_vars:
+                mount_asset_secret_name: fs.azure.account.key.testworkspacesa.blob.core.windows.net
+            spark_version: 12.2.x-scala2.12
+    large:
+        new_cluster:
+            node_type_id: Standard_DS13_v2
+            num_workers: 4
+            spark_conf:
+                parquet.enable.summary-metadata: false
+                spark.driver.maxResultSize: 4g
+                spark.sql.sources.commitProtocolClass: org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
+            spark_env_vars:
+                mount_asset_secret_name: fs.azure.account.key.testworkspacesa.blob.core.windows.net
+            spark_version: 12.2.x-scala2.12
+details:
+    access_control_list:
+        - group_name: admins
+          permission_level: CAN_MANAGE
+    host: https://adb-6002052623675423.3.azuredatabricks.net/
+    keyvault: mlwpyrogaicse4e8fykkv
+    secret_scope: default
+    storage_account: mlwpyrogaicse4e8fyksa
+    container_name: azureml-blobstore-5a4bef7e-1bf4-4448-913c-e5b27ab9db0a
+    azure_proxy: http://zeeuproxy.eu.pg.com:9400
+    max_concurrent_runs: 2 # as many as integration tests
+name: DBR Provider
+platform: DBR
+environment:
+  - dev
+  - stg
+  - prod
+runtimes:
+    runtime_optimization:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_optimization.txt

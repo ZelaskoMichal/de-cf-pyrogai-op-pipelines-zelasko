@@ -1,0 +1,7 @@
+,name,recommended portfolio percent,is_risky,expected_return,region,region_index,industry,industry average
+0,brewery,30.0,0,11.399999999999999,LAC,0.95,CONSUMABLES,12
+1,highways,1.0,0,9.450000000000001,NA,1.05,INFRASTRUCTURE,9
+2,cars,14.0,0,10.45,LAC,0.95,DURABLE GOODS,11
+3,software,6.0,1,14.3,EMEA,1.1,IT,13
+4,communication,30.0,0,11.0,EMEA,1.1,OTHER,10
+5,analytics,19.0,1,13.65,NA,1.05,IT,13

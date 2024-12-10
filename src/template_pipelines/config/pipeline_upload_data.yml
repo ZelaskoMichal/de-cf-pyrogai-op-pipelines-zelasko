@@ -1,0 +1,19 @@
+compute: small
+description: This pipeline demonstrates how to upload data from a local folder to a remote blob storage on the cloud.
+experiment: exp_ml
+name: upload_data
+platforms:
+    - Local
+    - AML
+    - DBR
+    - Vertex
+scope: upload-data
+cicd_enabled: False
+runtime: runtime_upload_data
+params:
+    dest_platform: Vertex
+    source_dir: ./CouponData
+    remote_dest_dir: CouponData
+steps:
+-   class: template_pipelines.steps.upload_data.upload_data:UploadData
+    name: upload_data

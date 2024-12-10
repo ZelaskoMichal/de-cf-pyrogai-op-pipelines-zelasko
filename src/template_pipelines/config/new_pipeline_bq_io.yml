@@ -1,0 +1,17 @@
+compute: small
+description: This pipeline demonstrates how use GCP Bigquery IO Slot.
+experiment: template
+input_output_slots:
+- name: bq_slot
+  type: bigquery
+name: bq_io
+platforms:
+- Vertex
+- Local
+runtime: runtime_bq_io
+scope: bq-io
+steps:
+- class: template_pipelines.steps.bq_io.bq_io:BQIo
+  inputs:
+  - bq_slot
+  name: bq_io

@@ -1,0 +1,30 @@
+device: cuda  # or cuda for gpu
+num_epochs: 1
+batch_size: 2 # -1 autobatch
+split_pct: 0.2
+align_images: False
+save_model: False
+model_save_format: onnx
+conf: 0.2
+projects:
+  - name: project1
+    skip_labelbox_export: True
+    labelbox_id: project1id
+    use_pretrained: True
+    skip_training: False
+    use_checkpoint: False
+    model_checkpoint: runs/detect/train/weights/best.pt
+    overwrite_local_images_from_labelbox: True
+    overwrite_local_labels_from_labelbox: True
+  - name: products
+    skip_labelbox_export: False
+    labelbox_id: cloufflyz0r4p07yrenbrcbay
+    use_pretrained: True
+    skip_training: False
+    use_checkpoint: False
+    model_checkpoint: datasets/products/runs/detect/train/weights/best.pt  
+    overwrite_local_images_from_labelbox: True
+    overwrite_local_labels_from_labelbox: True
+yolo_data_dir: datasets
+yolo_labels_dir: train/labels
+yolo_images_dir: train/images

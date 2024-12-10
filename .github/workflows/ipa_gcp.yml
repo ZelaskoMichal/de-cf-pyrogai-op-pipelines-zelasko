@@ -1,0 +1,729 @@
+name: Build IPA image and deploy to GCP
+
+# This is the only part that requires configuration
+env:
+  # Image name (leave <TAG> alone, it will be dynamically replaced with the actual tag)
+  IPA_IMAGE: 'aif-ipa:<TAG>'
+  # Image cache name
+  IPA_CACHE_IMAGE: 'aif-ipa-cache:<HASH>'
+  # Full image path on the Azure Container Registry (<TAG> replaced with the actual tag)
+  IPA_IMAGE_PREFIX: 'us-east4-docker.pkg.dev/dna-aif-dev-dev-ebbb/gcr-sa-stepsdeploy/'
+  # Name of the Cloud Run service
+  IPA_SERVICE_NAME: 'aif-ipa-sa-op-pipelines'
+  # Project's Python module with IPA custom endpoints
+  IPA_CUSTOM_ENDPOINTS_MODULE: 'template_pipelines.custom_ipa_endpoints'
+  # Timeout for the `livez` endpoint to appear before running automated testing (in seconds)
+  DEPLOYMENT_TIMEOUT_S: 100
+  # Add extra requirements to be installed for testing, space-separated: 'requirements-this.txt requirements-that.txt'
+  PYROGAI_EXTRA_REQUIREMENTS: 'src/template_pipelines/reqs/requirements_ml_training.txt src/template_pipelines/reqs/requirements_optimization.txt src/template_pipelines/reqs/requirements_gen_ai_product_opt.txt'
+  # Environment name - name of the environment: dev, stg or prod
+  ENVIRONMENT_NAME: 'dev'
+  # FOR DEBUG ONLY - Hash of the cache image to hardcode (if specified produces inconsistent images, but faster)
+  # IPA_HARDCODED_CACHE_HASH: '38ad404eefdcc93305caf6a216e6a7bec48670ef1d60590e651bbf2faaf161bc'
+  # FOR DEBUG ONLY - Tag of the final image to hardcode (if specified no image build will be performed at all)
+  # IPA_HARDCODED_IMAGE_TAG: 'dev-pr1617-161b67d777'
+  # JFrog details
+  JFROG_URL: png.jfrog.io/artifactory/api/pypi/pgg-dna-pypi-virtual
+  JFROG_USERNAME: itsmlops.im
+  JFROG_API_KEY_FILE: '.jfrog-api-key'
+  # GCP project details
+  GCP_SERVICE_ACCOUNT: 'sa-stepsdeploy@dna-aif-dev-dev-ebbb.iam.gserviceaccount.com'
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/850845466029/locations/global/workloadIdentityPools/github/providers/github
+  GCP_PROJECT_ID: dna-aif-dev-dev-ebbb
+  GCP_REGION: us-east4
+  # Base docker image
+  BASEIMAGE: 'us-east4-docker.pkg.dev/shared-gcr-c99a/debian/dna-deb-py3.9-base:latest'
+
+  # Cloud Run resource limits
+  # Set a CPU limit in Kubernetes cpu units. Cloud Run (fully managed) supports values 1, 2 and 4.
+  # 4 cpus also requires a minimum 2Gi CR_MEMORY value.
+  CR_CPU: 1
+  # Set a memory limit. Ex: 1024Mi, 4Gi.
+  CR_MEMORY: 1Gi
+  # The minimum number of container instances of the Service to run or 'default' to remove any minimum.
+  CR_MIN_INSTANCES: 1
+  # The maximum number of container instances of the Service to run.
+  # Use 'default' to unset the limit and use the platform default.
+  CR_MAX_INSTANCES: default
+
+  # Details of the Staging environment
+  GCP_PROJECT_ID_STG: 'PLACEHOLDER_FOR_STG_PROJECT_ID'
+  GCP_SERVICE_ACCOUNT_STG: 'PLACEHOLDER_FOR_STG_SERVICE_ACCOUNT'
+  GCP_WORKLOAD_IDENTITY_PROVIDER_STG: 'PLACEHOLDER_FOR_STG_WORKLOAD_IDENTITY_PROVIDER'
+  CR_CPU_STG: 'PLACEHOLDER_FOR_STG_CR_CPU'
+  CR_MEMORY_STG: 'PLACEHOLDER_FOR_STG_CR_MEMORY'
+  CR_MIN_INSTANCES_STG: 'PLACEHOLDER_FOR_STG_CR_MIN_INSTANCES'
+  CR_MAX_INSTANCES_STG: 'PLACEHOLDER_FOR_STG_CR_MAX_INSTANCES'
+
+  # Details of the Production environment
+  GCP_PROJECT_ID_PROD: 'PLACEHOLDER_FOR_PROD_PROJECT_ID'
+  GCP_SERVICE_ACCOUNT_PROD: 'PLACEHOLDER_FOR_PROD_SERVICE_ACCOUNT'
+  GCP_WORKLOAD_IDENTITY_PROVIDER_PROD: 'PLACEHOLDER_FOR_STG_WORKLOAD_IDENTITY_PROVIDER'
+  CR_CPU_PROD: 'PLACEHOLDER_FOR_PROD_CR_CPU'
+  CR_MEMORY_PROD: 'PLACEHOLDER_FOR_PROD_CR_MEMORY'
+  CR_MIN_INSTANCES_PROD: 'PLACEHOLDER_FOR_PROD_CR_MIN_INSTANCES'
+  CR_MAX_INSTANCES_PROD: 'PLACEHOLDER_FOR_PROD_CR_MAX_INSTANCES'
+
+on:
+  release:
+    types:
+      - released
+      - prereleased
+  pull_request:
+
+jobs:
+
+  ipa_build_deploy:
+
+    # Building and deploying to GCP is *disabled* by default through the `if: false` statement below.
+    # Change `false` to `true` if you want to enable IPA build and GCP deployments for your repository.
+    if: false
+
+    permissions:
+      actions: write
+      checks: write
+      contents: read
+      deployments: write
+      id-token: write
+      pull-requests: read
+      statuses: write
+    runs-on: pg_custom_runner
+    strategy:
+      matrix:
+        python-version:
+          - '3.9'
+    environment: dev
+    outputs:
+      deployment_ref: ${{ steps.deployment_data.outputs.deployment_ref }}
+      deployment_url: ${{ steps.deployment_data.outputs.deployment_url }}
+      deployment_prefix: ${{ steps.deployment_data.outputs.deployment_prefix }}
+      gh_deployment_id: ${{ steps.get_gh_deployment_id.outputs.gh_deployment_id }}
+    steps:
+      - name: Determine to which project deploy based on what triggered this workflow
+        env:
+          EVT_NAME: ${{ github.event_name }}
+          EVT_ACTION: ${{ github.event.action }}
+          EVT_PRNUM: ${{ github.event.pull_request.number }}
+        run: |
+          if [[ $EVT_NAME == release && $EVT_ACTION == released ]]; then
+              DEPLOYMENT_NAME=prod
+              NEW_GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID_PROD }}
+              NEW_SERVICE_ACCOUNT=${{ env.GCP_SERVICE_ACCOUNT_PROD }}
+              NEW_WORKLOAD_IDENTITY_PROVIDER=${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER_PROD }}
+              NEW_ENVIRONMENT_NAME=prod
+              NEW_CR_CPU=${{ env.CR_CPU_PROD }}
+              NEW_CR_MEMORY=${{ env.CR_MEMORY_PROD }}
+              NEW_CR_MIN_INSTANCES=${{ env.CR_MIN_INSTANCES_PROD }}
+              NEW_CR_MAX_INSTANCES=${{ env.CR_MAX_INSTANCES_PROD }}
+              if [[ ${NEW_GCP_PROJECT_ID} == ${{ env.GCP_PROJECT_ID }}  ]]; then
+                  echo '::error::The release event is triggered for the same project as the dev project; quitting'
+                  exit 1
+              fi
+          elif [[ $EVT_NAME == release && $EVT_ACTION == prereleased ]]; then
+              DEPLOYMENT_NAME=stg
+              NEW_GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID_STG }}
+              NEW_SERVICE_ACCOUNT=${{ env.GCP_SERVICE_ACCOUNT_STG }}
+              NEW_WORKLOAD_IDENTITY_PROVIDER=${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER_STG }}
+              NEW_ENVIRONMENT_NAME=stg
+              NEW_CR_CPU=${{ env.CR_CPU_STG }}
+              NEW_CR_MEMORY=${{ env.CR_MEMORY_STG }}
+              NEW_CR_MIN_INSTANCES=${{ env.CR_MIN_INSTANCES_STG }}
+              NEW_CR_MAX_INSTANCES=${{ env.CR_MAX_INSTANCES_STG }}
+              if [[ ${NEW_GCP_PROJECT_ID} == ${{ env.GCP_PROJECT_ID }}  ]]; then
+                  echo '::error::The release event is triggered for the same project as the dev project; quitting'
+                  exit 1
+              fi
+          elif [[ ${EVT_NAME:0:12} == pull_request && $EVT_PRNUM ]]; then
+              DEPLOYMENT_NAME=dev-pr${EVT_PRNUM}
+              NEW_GCP_PROJECT_ID=""
+          else
+              echo '::error::This workflow is running on an unsupported GitHub Actions event, or with missing variables'
+              exit 1
+          fi
+          echo "Deployment name set to ${DEPLOYMENT_NAME} - this will impact the image name and the Kubernetes deployments"
+          echo "DEPLOYMENT_NAME=${DEPLOYMENT_NAME}" >> $GITHUB_ENV
+
+          if [[ "$NEW_GCP_PROJECT_ID" ]]; then
+              echo "Updating GCP_PROJECT_ID to ${NEW_GCP_PROJECT_ID}"
+              echo "GCP_PROJECT_ID=${NEW_GCP_PROJECT_ID}" >> $GITHUB_ENV
+
+              echo "Updating GCP_SERVICE_ACCOUNT to ${NEW_SERVICE_ACCOUNT}"
+              echo "GCP_SERVICE_ACCOUNT=${NEW_SERVICE_ACCOUNT}" >> $GITHUB_ENV
+
+              echo "Updating GCP_WORKLOAD_IDENTITY_PROVIDER to ${NEW_WORKLOAD_IDENTITY_PROVIDER}"
+              echo "GCP_WORKLOAD_IDENTITY_PROVIDER=${NEW_WORKLOAD_IDENTITY_PROVIDER}" >> $GITHUB_ENV
+
+              echo "Updating CR_CPU to ${NEW_CR_CPU}"
+              echo "CR_CPU=${NEW_CR_CPU}" >> $GITHUB_ENV
+
+              echo "Updating CR_MEMORY to ${NEW_CR_MEMORY}"
+              echo "CR_MEMORY=${NEW_CR_MEMORY}" >> $GITHUB_ENV
+
+              echo "Updating CR_MIN_INSTANCES to ${NEW_CR_MIN_INSTANCES}"
+              echo "CR_MIN_INSTANCES=${NEW_CR_MIN_INSTANCES}" >> $GITHUB_ENV
+
+              echo "Updating CR_MAX_INSTANCES to ${NEW_CR_MAX_INSTANCES}"
+              echo "CR_MAX_INSTANCES=${NEW_CR_MAX_INSTANCES}" >> $GITHUB_ENV
+
+              echo "Updating ENVIRONMENT_NAME to ${NEW_ENVIRONMENT_NAME}"
+              echo "ENVIRONMENT_NAME=${NEW_ENVIRONMENT_NAME}" >> $GITHUB_ENV
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      # Do not remove: it enables Continuous Winning
+      - name: Login to the GitHub Docker Registry for getting Continuous Winning
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghcr.io
+          username: pgcw  # does not matter
+          password: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+      - name: Cancel All Outdated Workflows
+        if: |
+          startsWith(github.ref, 'refs/heads/') || startsWith(github.event_name, 'pull_request')
+        uses: ./cw
+        with:
+          check: cancel-uncompleted-workflows
+          args: '--token ${{ secrets.GITHUB_TOKEN }} --workflows ipa_gcp.yml --preserve-run most-recent'
+
+      - id: google-auth
+        name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          token_format: access_token
+          project_id: ${{env.GCP_PROJECT_ID}}
+          workload_identity_provider: ${{env.GCP_WORKLOAD_IDENTITY_PROVIDER}}
+          service_account: ${{env.GCP_SERVICE_ACCOUNT}}
+          create_credentials_file: true
+          access_token_lifetime: 3000s
+
+      - name: Set up Google Service Account
+        run: |
+          gcloud auth list
+          gcloud config set project '${{env.GCP_PROJECT_ID}}'
+          gcloud auth configure-docker
+          gcloud auth configure-docker ${{env.GCP_REGION}}-docker.pkg.dev
+          gcloud config get-value project
+      - name: Fetch JFrog authentication key
+        run: |
+          gcloud secrets versions access latest --project='dna-utils-prod-ed70' --secret=jfrog-token 1> $JFROG_API_KEY_FILE
+          grep -q '[^[:space:]]' $JFROG_API_KEY_FILE || (echo "JFrog token could not be fetched; quitting" && exit 1)
+
+      - name: Setup pip to use JFrog
+        env:
+          PIP_CONFIG_FILE: "pip.conf"
+        run: |
+          mkdir -p .pip || echo ".pip path exist."
+          touch $PIP_CONFIG_FILE
+          echo "JFrog URI: $JFROG_URL"
+          cat > $PIP_CONFIG_FILE << EOF
+          [global]
+          index-url = https://$JFROG_USERNAME:$(<$JFROG_API_KEY_FILE)@$JFROG_URL/simple/
+          trusted-host = $JFROG_URL
+          EOF
+          mkdir -p $HOME/.config/pip/
+          cp $PIP_CONFIG_FILE $HOME/.config/pip/pip.conf
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        if: env.IPA_HARDCODED_IMAGE_TAG == ''
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Add Robust pip - retry some times before failing
+        run: |
+          ROBUST_PIP_DIR=$(mktemp -d)
+          cat > $ROBUST_PIP_DIR/robust_pip <<\EOF
+          #!/bin/bash -e
+          for ((I=1; I<=3; I++)); do
+            ERR=0
+            echo "Invoking pip $* - attempt #${I}"
+            pip "$@" && break || ERR=$?
+          done
+          exit $ERR
+          EOF
+          chmod 0777 $ROBUST_PIP_DIR/robust_pip
+          echo $ROBUST_PIP_DIR >> $GITHUB_PATH
+
+      - name: Add extra Python packages
+        if: env.IPA_HARDCODED_IMAGE_TAG == ''
+        run: |
+          robust_pip install -U wheel setuptools
+
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+          echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+      - name: Build project's wheel
+        if: env.IPA_HARDCODED_IMAGE_TAG == ''
+        run: |
+          python setup.py bdist_wheel
+
+      - name: Get image tag based on the current Git hash
+        id: get_image_tag
+        run: |
+          TAG=
+          if [[ $IPA_HARDCODED_IMAGE_TAG ]]; then
+              TAG=$IPA_HARDCODED_IMAGE_TAG
+          else
+              TAG=${DEPLOYMENT_NAME}-$(git rev-parse HEAD | cut -b1-10)
+          fi
+          echo "image_tag=${TAG}" >> $GITHUB_OUTPUT
+
+      # Image building using cache
+
+      - name: Compute cache image hash (based on requirements.txt)
+        id: get_cache_hash
+        run: |
+          set -e
+          HASH=$(cat requirements*.txt | sha256sum | awk '{print $1}')
+          if [[ $HASH == e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 || $HASH == '' ]]; then
+              echo "::error::Invalid hash (hashed empty string or hash itself is empty), this should not happen"
+              exit 1
+          fi
+          echo "Hash is: ${HASH}"
+          if [[ $IPA_HARDCODED_CACHE_HASH ]]; then
+              echo "::warning::Since IPA_HARDCODED_CACHE_HASH is defined, using hash ${IPA_HARDCODED_CACHE_HASH} instead"
+              echo "docker_cache_hash=${IPA_HARDCODED_CACHE_HASH}" >> $GITHUB_OUTPUT
+          else
+              echo "docker_cache_hash=${HASH}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch cache image based on hash (if possible)
+        if: env.IPA_HARDCODED_IMAGE_TAG == ''
+        env:
+          CACHE_HASH: ${{ steps.get_cache_hash.outputs.docker_cache_hash }}
+        id: pull_cache_image
+        run: |
+          FULL_CACHE_IMAGE=${IPA_IMAGE_PREFIX}${IPA_CACHE_IMAGE/<HASH>/$CACHE_HASH}
+          echo "Attempting to pull cache image ${FULL_CACHE_IMAGE}"
+          docker pull "${FULL_CACHE_IMAGE}" || ERR=$?
+          if [[ $ERR ]]; then
+              echo "::warning::Cache image cannot be found"
+              echo "found=not-found" >> $GITHUB_OUTPUT
+          else
+              echo "found=found" >> $GITHUB_OUTPUT
+          fi
+
+
+      - name: Build and push cache image (if needed)
+        if: |
+          env.IPA_HARDCODED_IMAGE_TAG == '' && steps.pull_cache_image.outputs.found == 'not-found'
+        env:
+          DOCKER_BUILDKIT: "1"
+          CACHE_HASH: ${{ steps.get_cache_hash.outputs.docker_cache_hash }}
+          GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          FULL_CACHE_IMAGE=${IPA_IMAGE_PREFIX}${IPA_CACHE_IMAGE/<HASH>/$CACHE_HASH}
+          echo "Building cache image ${FULL_CACHE_IMAGE}"
+          # Build with `--secret` requires Docker 20 - it reads it from an envvar called GITHUB_TOKEN
+          docker build \
+              -f deployment/Dockerfile_GCP_IPA_base \
+              -t "${FULL_CACHE_IMAGE}" \
+              --build-arg BASEIMAGE="${{ env.BASEIMAGE }}" \
+              --secret id=GITHUB_TOKEN \
+              --no-cache \
+              --pull \
+              --network=host \
+              .
+          # Push with retry
+          echo "Pushing cache image ${FULL_CACHE_IMAGE}"
+          for ((I=1; I<=10; I++)); do
+              ERR=0
+              docker push "${FULL_CACHE_IMAGE}" && break || ERR=1
+              echo "Attempt to push ${FULL_CACHE_IMAGE} $I/10 failed"
+              sleep 2
+          done
+          exit $ERR
+      - name: Copy IPA config to cwd
+        run: |
+          cp test/ipa.json ipa.json
+          ls
+
+      - name: Acquire lock
+        uses: ./cw
+        with:
+          check: distributed-lock
+          args: |
+            --action acquire
+            --lockid GCP_CLOUD_RUN_IPA
+            --git-remote https://user:"${{ secrets.USER_GITHUB_TOKEN }}"@github.com${{ github.organization }}/${{ github.repository }}
+            --branch lock_branch_cloud_run_ipa
+            --timeout 1830
+            --expiry 1200
+
+
+      - name: Build and push final IPA image
+        id: build_push_image
+        if: env.IPA_HARDCODED_IMAGE_TAG == ''
+        env:
+          DOCKER_BUILDKIT: "1"
+          CACHE_HASH: ${{ steps.get_cache_hash.outputs.docker_cache_hash }}
+          IMAGE_TAG: ${{ steps.get_image_tag.outputs.image_tag }}
+        run: |
+          set -e
+          FULL_CACHE_IMAGE=${IPA_IMAGE_PREFIX}${IPA_CACHE_IMAGE/<HASH>/$CACHE_HASH}
+          FULL_FINAL_IMAGE=${IPA_IMAGE_PREFIX}${IPA_IMAGE/<TAG>/$IMAGE_TAG}
+          echo "Building final IPA image ${FULL_FINAL_IMAGE} on top of cache image ${FULL_CACHE_IMAGE}"
+          docker build \
+              -f deployment/Dockerfile_GCP_IPA_app \
+              -t "${FULL_FINAL_IMAGE}" \
+              --no-cache \
+              --network=host \
+              --build-arg IPA_FULL_CACHE_IMAGE="${FULL_CACHE_IMAGE}" \
+              .
+          echo "ipa_image=${FULL_FINAL_IMAGE}" >> ${GITHUB_OUTPUT} \
+
+          # Push with retry
+          echo "Pushing final IPA image ${FULL_FINAL_IMAGE}"
+          for ((I=1; I<=10; I++)); do
+              ERR=0
+              docker push "${FULL_FINAL_IMAGE}" && break || ERR=1
+              echo "Attempt to push ${FULL_FINAL_IMAGE} $I/10 failed"
+              sleep 2
+          done
+          exit $ERR
+      # End of Image building using cache
+
+
+      - name: Deploy to Cloud Run
+        run: |
+          set -e
+          IMAGE=
+          if [[ $IPA_HARDCODED_IMAGE_TAG ]]; then
+              IMAGE=${IPA_IMAGE_PREFIX}${IPA_IMAGE/<TAG>/$IPA_HARDCODED_IMAGE_TAG}
+          else
+              IMAGE=${{ steps.build_push_image.outputs.ipa_image }}
+          fi
+          gcloud run deploy ${{ env.IPA_SERVICE_NAME }} \
+          --region ${{ env.GCP_REGION }} \
+          --ingress internal-and-cloud-load-balancing \
+          --vpc-egress all-traffic \
+          --service-account ${{ env.GCP_SERVICE_ACCOUNT }} \
+          --execution-environment gen2 \
+          --cpu ${{ env.CR_CPU }} \
+          --memory ${{ env.CR_MEMORY }} \
+          --min-instances ${{ env.CR_MIN_INSTANCES }} \
+          --max-instances ${{ env.CR_MAX_INSTANCES }} \
+          --port 80 \
+          --image $IMAGE \
+          --update-env-vars="IPA_DEPLOYMENT_NAME=${DEPLOYMENT_NAME}, GIT_DEPLOY_REF=${{ github.event.pull_request.head.sha }}"
+
+      - name: Determine deployment URL based on the current environment
+        id: deployment_data
+        run: |
+          DEPLOYMENT_REF="${{ github.event.pull_request.head.sha }}"
+          DEPLOYMENT_PREFIX=$(gcloud run services describe ${{ env.IPA_SERVICE_NAME }} --region ${{env.GCP_REGION}} --format 'value(status.url)')
+          DEPLOYMENT_URL="${DEPLOYMENT_PREFIX}/livez"
+          echo "deployment_ref=${DEPLOYMENT_REF}" >> $GITHUB_OUTPUT
+          echo "deployment_url=${DEPLOYMENT_URL}" >> $GITHUB_OUTPUT
+          echo "deployment_prefix=${DEPLOYMENT_PREFIX}" >> $GITHUB_OUTPUT
+
+      - name: Create status of GCP IPA deployment
+        uses: octokit/request-action@v2.x
+        id: create_deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          route: POST /repos/{repo}/deployments
+          repo: ${{ github.repository }}
+          environment: "GCP IPA deployment"
+          ref: ${{ steps.deployment_data.outputs.deployment_ref }}
+          auto_merge: "false"
+          required_contexts: "[]"
+
+      - name: Determine GitHub Deployment ID to set status later
+        id: get_gh_deployment_id
+        env:
+          GITHUB_DEPLOYMENT_ID: ${{ fromJson(steps.create_deployment.outputs.data).id }}
+        run: |
+          echo "gh_deployment_id=${GITHUB_DEPLOYMENT_ID}" >> $GITHUB_OUTPUT
+
+      - name: Set status of IPA Cloud Run deployment
+        uses: octokit/request-action@v2.x
+        id: set_deployment_status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          route: POST /repos/{repo}/deployments/{id}/statuses
+          repo: ${{ github.repository }}
+          state: "in_progress"
+          id: ${{ steps.get_gh_deployment_id.outputs.gh_deployment_id }}
+          environment_url: ${{ steps.deployment_data.outputs.deployment_url }}
+          auto_inactive: "false"
+
+      - name: Describe service
+        run: |
+          gcloud run services describe ${{env.IPA_SERVICE_NAME}} --region ${{env.GCP_REGION}}
+
+      - name: Clean up JFrog token
+        run: |
+          rm -f $JFROG_API_KEY_FILE
+
+  ipa_endpoint_test:
+
+    # Building and deploying to GCP is *disabled* by default through the `if: false` statement below.
+    # Change `false` to `true` if you want to enable IPA build and GCP deployments for your repository.
+    if: false
+
+    permissions:
+      actions: write
+      checks: write
+      contents: read
+      deployments: write
+      id-token: write
+      pull-requests: read
+      statuses: write
+
+    runs-on: pg_custom_runner
+    needs:
+      - ipa_build_deploy
+    strategy:
+      matrix:
+        python-version:
+          - '3.9'
+    steps:
+        # Check if the proper secret has been set - it should be an org token
+      - name: Check if secret PG_DNA_GITHUB_TOKEN is available
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $PG_DNA_GITHUB_TOKEN ]]; then
+              MSG="Secret `PG_DNA_GITHUB_TOKEN` was not found."
+              MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+          echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      # Do not remove: it enables Continuous Winning
+      - name: Login to the GitHub Docker Registry for getting Continuous Winning
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghcr.io
+          username: pgcw  # does not matter
+          password: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+      - id: google-auth
+        name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          token_format: id_token
+          project_id: ${{env.GCP_PROJECT_ID}}
+          workload_identity_provider: ${{env.GCP_WORKLOAD_IDENTITY_PROVIDER}}
+          service_account: ${{env.GCP_SERVICE_ACCOUNT}}
+          id_token_audience: ${{ needs.ipa_build_deploy.outputs.deployment_prefix }}
+          id_token_include_email: true
+
+      - name: Set up Google Service Account
+        run: |
+          gcloud auth list
+          gcloud config set project '${{env.GCP_PROJECT_ID}}'
+          gcloud config get-value project
+
+      - name: Describe service
+        run: |
+          gcloud run services describe ${{env.IPA_SERVICE_NAME}} --region ${{env.GCP_REGION}}
+
+      - name: Wait for IPA deployment
+        id: wait_ipa_deployment
+        continue-on-error: true  # we still need to set the deployment status, and then we fail
+        env:
+          GOOGLE_ID_ACCESS_TOKEN: ${{ steps.google-auth.outputs.id_token }}
+        run: |
+          timeout ${DEPLOYMENT_TIMEOUT_S} bash -c 'while [[ $(curl -H "Authorization: Bearer ${GOOGLE_ID_ACCESS_TOKEN}" -s ${{ needs.ipa_build_deploy.outputs.deployment_url }} -w ''%{http_code}'' -o resp.json) != "200" || "$(cat resp.json | jq -r '.deploy_ref')" != ${{ needs.ipa_build_deploy.outputs.deployment_ref }} ]]; do sleep 5; done' || false
+
+      - name: Set status of GCP IPA deployment to success
+        uses: octokit/request-action@v2.x
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: |
+          steps.wait_ipa_deployment.outcome == 'success'
+        with:
+          route: POST /repos/{repo}/deployments/{id}/statuses
+          repo: ${{ github.repository }}
+          state: "success"
+          id: ${{ needs.ipa_build_deploy.outputs.gh_deployment_id }}
+          environment_url: ${{ needs.ipa_build_deploy.outputs.deployment_url }}
+          auto_inactive: "false"
+
+      - name: Set status of GCP IPA deployment to failed
+        uses: octokit/request-action@v2.x
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: |
+          steps.wait_ipa_deployment.outcome != 'success'
+        with:
+          route: POST /repos/{repo}/deployments/{id}/statuses
+          repo: ${{ github.repository }}
+          state: "error"
+          id: ${{ needs.ipa_build_deploy.outputs.gh_deployment_id }}
+          environment_url: ${{ needs.ipa_build_deploy.outputs.deployment_url }}
+          auto_inactive: "false"
+
+      - name: Fail in case IPA endpoint did not come up properly after timeout
+        if: |
+          steps.wait_ipa_deployment.outcome != 'success'
+        run: |
+          false
+
+      - name: Fetch JFrog authentication key
+        run: |
+          gcloud secrets versions access latest --project='dna-utils-prod-ed70' --secret=jfrog-token 1> $JFROG_API_KEY_FILE
+          grep -q '[^[:space:]]' $JFROG_API_KEY_FILE || (echo "JFrog token could not be fetched; quitting" && exit 1)
+
+      - name: Setup pip to use JFrog
+        env:
+          PIP_CONFIG_FILE: "pip.conf"
+        run: |
+          mkdir -p .pip || echo ".pip path exist."
+          touch $PIP_CONFIG_FILE
+          echo "JFrog URI: $JFROG_URL"
+          cat > $PIP_CONFIG_FILE << EOF
+          [global]
+          index-url = https://$JFROG_USERNAME:$(<$JFROG_API_KEY_FILE)@$JFROG_URL/simple/
+          trusted-host = $JFROG_URL
+          EOF
+          mkdir -p $HOME/.config/pip/
+          cp $PIP_CONFIG_FILE $HOME/.config/pip/pip.conf
+
+      - name: Enable Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      ## Install Python dependencies using caching below ##
+
+      # The actions/setup-python action automatically deprecates an old patch version of Python as
+      # soon as a new one is released. So, 3.7.6 gets deprecated as soon as 3.7.7 is out. We can
+      # only specify major.minor in the setup, but we need to know the full version for the cache
+      - name: Retrieve exact Python minor version
+        id: get-exact-py-ver
+        run: echo "python-version=$(python -V | grep -oE '([0-9]+\.){2}[0-9]+' | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore venv from cache for Python ${{ steps.get-exact-py-ver.outputs.python-version }}
+        uses: actions/cache/restore@v3
+        id: cache-venv
+        with:
+          path: .venv
+          key: pg-cw-venv-${{ runner.os }}-py${{ steps.get-exact-py-ver.outputs.python-version }}-${{ hashFiles('requirements*.txt', 'pyproject.toml') }}
+
+      - name: Create venv
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: python -m venv .venv
+
+      - name: Add Robust pip - retry some times before failing
+        run: |
+          ROBUST_PIP_DIR=$(mktemp -d)
+          cat > $ROBUST_PIP_DIR/robust_pip <<\EOF
+          #!/bin/bash -e
+          for ((I=1; I<=3; I++)); do
+            ERR=0
+            echo "Invoking pip $* - attempt #${I}"
+            pip "$@" && break || ERR=$?
+          done
+          exit $ERR
+          EOF
+          chmod 0777 $ROBUST_PIP_DIR/robust_pip
+          echo $ROBUST_PIP_DIR >> $GITHUB_PATH
+
+      - name: Add extra Python packages
+        if: env.IPA_HARDCODED_IMAGE_HASH == ''
+        run: |
+          robust_pip install -U wheel setuptools
+
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+          echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+      # Install Python dependencies only
+      - name: Install Python Dependencies
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          source .venv/bin/activate
+          robust_pip install -U pip
+          for REQ in requirements.txt requirements-devel.txt $PYROGAI_EXTRA_REQUIREMENTS; do
+              ERR=0
+              echo "::group::Installing $REQ using robust_pip"
+              robust_pip install -r "$REQ" || ERR=$?
+              echo "::endgroup::"
+              if [[ $ERR != 0 ]]; then
+                  echo "::error::Failed pip installation of $REQ - exitcode was $ERR"
+                  false  # abort installation
+              fi
+          done
+
+      - name: List all installed packages
+        run: |
+          set -e
+          source .venv/bin/activate
+          robust_pip freeze
+
+      - name: Save venv to Python dependencies to cache
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        id: cache-save
+        with:
+          path: .venv
+          key: ${{ steps.cache-venv.outputs.cache-primary-key }}
+
+      # Now install the Python package itself
+      - name: Install This Python Package
+        run: |
+          set -e
+          source .venv/bin/activate
+          robust_pip install --no-deps -e .
+
+      ## Install Python dependencies using caching above ##
+
+      - name: Run tests
+        env:
+          IPA_URL_PREFIX: ${{ needs.ipa_build_deploy.outputs.deployment_prefix }}
+          GOOGLE_ID_ACCESS_TOKEN: ${{ steps.google-auth.outputs.id_token }}
+        run: |
+          set -e
+          source .venv/bin/activate
+          echo "::notice::IPA has been deployed: you can run tests against your IPA instance from this PR by referring to the IPA_URL_PREFIX variable available in your tests - currently set to ${IPA_URL_PREFIX}"
+          python test/run_pytest_cov.py --markers ipa
+
+      - name: Release lock
+        uses: ./cw
+        if: always()
+        with:
+          check: distributed-lock
+          args: |
+            --action release
+            --lockid GCP_CLOUD_RUN_IPA
+            --git-remote https://user:"${{ secrets.USER_GITHUB_TOKEN }}"@github.com${{ github.organization }}/${{ github.repository }}
+            --branch lock_branch_cloud_run_ipa
+
+      - name: Clean up JFrog token
+        run: |
+          rm -f $JFROG_API_KEY_FILE

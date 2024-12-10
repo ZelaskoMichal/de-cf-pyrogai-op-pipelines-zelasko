@@ -1,0 +1,19 @@
+{
+    "ml_observability": {
+        "target": "class",
+        "features": [
+            "sepal_length",
+            "sepal_width",
+            "petal_length",
+            "petal_width"
+        ],
+        "random_state": 1,
+        "train_size": 0.9
+    },
+    "observability_models": {
+        "Iris_Classifier": {
+            "version": "1",
+            "type": "categorical"
+        }
+    }
+}

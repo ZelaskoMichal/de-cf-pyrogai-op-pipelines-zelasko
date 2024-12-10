@@ -1,0 +1,38 @@
+compute: small
+description: Pipeline implementation demonstrating Observability
+experiment: template
+name: ml_observability
+platforms:
+- Vertex
+- AML
+- DBR
+- Local
+runtime: runtime_ml_observability
+scope: ml-observability
+steps:
+- class: template_pipelines.steps.ml_observability.iris_1_generate_data:GenerateDataStep
+  name: generate_data
+- class: template_pipelines.steps.ml_observability.iris_2_standarize_data:StandardizeDataStep
+  name: standardize_data
+  run_after:
+  - generate_data
+- class: template_pipelines.steps.ml_observability.iris_3_fix_data:FixDataStep
+  name: fix_data
+  run_after:
+  - standardize_data
+- class: template_pipelines.steps.ml_observability.iris_4_split_data:SplitDataStep
+  name: split_data
+  run_after:
+  - fix_data
+- class: template_pipelines.steps.ml_observability.iris_5_train_model:TrainModelStep
+  name: train_model
+  run_after:
+  - split_data
+- class: template_pipelines.steps.ml_observability.iris_6_score_data:ScoreDataStep
+  name: score_data
+  run_after:
+  - train_model
+- class: template_pipelines.steps.ml_observability.iris_observability_step:ModelObservability
+  name: observability_step
+  run_after:
+  - score_data

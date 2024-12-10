@@ -1,0 +1,38 @@
+name: gen_ai_product_opt
+description: Demonstrates a general Generative AI pipeline. Uses GenAI/OpenAI LLMs to improve product search visibility. Beta version
+experiment: exp_ml
+compute: small
+runtime: runtime_gen_ai_product_opt
+scope: gen-ai-product-opt
+platforms:
+    - Local
+    - AML
+input_output_slots:
+-   name: advertised_products.parquet
+    type: cloudfile
+    url: cloud://{config.gen_ai_product_opt.data_dir}/advertised_products.parquet
+-   name: product_keywords.parquet
+    type: cloudfile
+    url: cloud://{config.gen_ai_product_opt.data_dir}/product_keywords.parquet
+-   name: optimized_product_description.parquet
+    type: cloudfile
+    url: cloud://{config.gen_ai_product_opt.data_dir}/optimized_product_description.parquet
+
+steps:
+-   name: data_preprocessing
+    class: template_pipelines.steps.gen_ai_product_opt.data_preprocessing:Preprocessing
+    inputs:
+        - advertised_products.parquet
+        - product_keywords.parquet
+
+-   name: cosine_similarity
+    class: template_pipelines.steps.gen_ai_product_opt.cosine_similarity:CosineSimilarity
+    run_after:
+        - data_preprocessing
+
+-   name: content_generation
+    class: template_pipelines.steps.gen_ai_product_opt.content_generation:ContentGeneration
+    outputs:
+        - optimized_product_description.parquet
+    run_after:
+        - cosine_similarity

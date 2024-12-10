@@ -1,0 +1,21 @@
+data_dir: image_data/training_data #FORCE: hide=True
+out_dir: out #FORCE: hide=True
+experiment_name: None #FORCE: hide=True
+model_type: classification #FORCE: w=selectbox | options=["classification", "regression"]
+model_name: ResNext50 #FORCE: w=selectbox | options=["resnet18", "ResNext50", "MobileNetV2", "alexnet", "vgg11", "densenet121"]
+input_size: 224 #FORCE: hide=True
+train_ratio: 0.8 #FORCE: hide=True
+batch_size: 8 #FORCE: w=number_input | min_value=1 | step=1 | type=int | help="The number of samples processed before the model is updated."
+use_pretrained: True 
+feature_extracting: True
+num_classes: 2 #FORCE: hide=True
+cuda: False #FORCE: hide=True
+learning_rate: 0.01 #FORCE: w=number_input | min_value=0.00 | max_value=1.00 | step=0.01
+momentum: 0.9 #FORCE: w=number_input | step=0.01 | help="Helps accelerate gradients vectors in the right directions, thus leading to faster converging."
+num_epochs: 10 #FORCE: w=number_input | min_value=1 | step=1 | type=int | help="The number of complete passes through the training dataset."
+optimizer: Adam #FORCE: w=selectbox | options=["Adam","SGD", "Adagrad", "Adadelta", "AdamW", "Adamax", "RMSprop"]
+criterion: CrossEntropyLoss #FORCE: w=selectbox | options=["CrossEntropyLoss","MSELoss","coral_loss", "DistKLDivCriterion", "BCECriterion", "MultiMarginCriterion", "MSECriterion", "MultiCriterion"]
+saving_frequency: 5 #FORCE: w=number_input | min_value=1 | step=1 | type=int
+save_onnx: False
+save_torchscript: False
+hp_tuning_required: False

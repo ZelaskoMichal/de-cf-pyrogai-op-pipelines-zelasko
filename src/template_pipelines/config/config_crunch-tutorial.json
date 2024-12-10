@@ -1,0 +1,22 @@
+{
+  "crunch": {
+    "step_classes": {
+      "TutorialCrunchStep": {
+        "requirements": "requirements-crunch_tutorial.txt"
+      }
+    },
+    "step_instances": {
+      "run_crunch_tutorial": {
+        "infra_config": {
+          "memory": "200Mi",
+          "node_pool": "aif_standard_d8as_v5_regular"
+        },
+        "secrets": [
+          "secretA"
+        ]
+      }
+    }
+  },
+  "my_config_param": 42,
+  "crunch_tutorial_storage_account": "mlwpyrogaicse4e8fykex"
+}

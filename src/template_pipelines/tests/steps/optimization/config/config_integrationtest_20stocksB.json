@@ -1,0 +1,6 @@
+{
+    "data_dir": "test_data/L3_integration_test/20stocks/raw_data",
+    "integration_test_auxiliary_data_dir": "test_data/L3_integration_test/20stocks/auxiliary_data",
+
+    "expected_solve_time_upper_bound": 60
+}

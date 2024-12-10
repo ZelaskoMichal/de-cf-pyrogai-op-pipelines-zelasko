@@ -1,0 +1,21 @@
+﻿name,is_risky,region,industry
+treasury,0,NA,FINANCIAL
+hardware,1,NA,DURABLE GOODS
+theater,1,EMEA,ENTERTAINMENT
+telecom,1,EMEA,INFRASTRUCTURE
+brewery,0,LAC,CONSUMABLES
+highways,0,NA,INFRASTRUCTURE
+cars,0,LAC,DURABLE GOODS
+bank,0,NA,FINANCIAL
+software,1,EMEA,IT
+electronics,1,LAC,DURABLE GOODS
+energy,1,NA,INFRASTRUCTURE
+healthcare,0,LAC,OTHER
+communication,0,EMEA,OTHER
+analytics,1,NA,IT
+oil,1,LAC,INFRASTRUCTURE
+gas,0,EMEA,INFRASTRUCTURE
+music,1,NA,ENTERTAINMENT
+gaming,0,LAC,ENTERTAINMENT
+manufacturing,1,EMEA,DURABLE GOODS
+grocery,1,NA,CONSUMABLES

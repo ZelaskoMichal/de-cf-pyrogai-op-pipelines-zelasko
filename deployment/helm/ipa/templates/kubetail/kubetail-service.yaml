@@ -1,0 +1,24 @@
+{{ if (.Values.ipa.enable_kubetail) }}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-kubetailapi
+  labels:
+    app.kubernetes.io/name: kubetail
+    app.kubernetes.io/instance: kubetail
+    app.kubernetes.io/managed-by: Helm
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kubetail
+    app.kubernetes.io/instance: kubetail
+    release: {{ .Release.Name }}
+  ports:
+  - port: 4000
+    name: kubetail
+    targetPort: kubetail
+    appProtocol: http
+{{ end }}

@@ -1,0 +1,61 @@
+name: aml_sweep
+description: Use AzureML-specific functionality (AmlSweepStep) for hyperparameter tuning.
+experiment: exp_aml_sweep
+runtime: runtime_aml_sweep
+scope: aml-sweep
+compute: small
+platforms:
+  - AML
+  - Local
+
+# Define inputs and outputs
+input_output_slots:
+  # sweep trial output which will be used in sweep consumer to get data from best sweep trial
+  - name: trial_params
+    type: uri_file
+  # a cloudfile alternative that must be used locally (this will have last not best)
+  - name: cf_trial_params
+    type: cloudfile
+    url: cloud://sweep/trial_params
+  # sweep trial output which will be used in sweep consumer to get data from best sweep trial
+  - name: trial_model
+    type: uri_file
+  # a cloudfile alternative that must be used locally (this will have last not best)
+  - name: cf_trial_model
+    type: cloudfile
+    url: cloud://sweep/trial_model
+
+steps:
+  - class: template_pipelines.steps.aml_sweep.generate_data:GenerateData
+    name: generate_data
+
+  - class: template_pipelines.steps.aml_sweep.sweep_step:MyAmlSweepStep
+    name: my_sweep
+    outputs:
+      - trial_params
+      - cf_trial_params
+      - trial_model
+      - cf_trial_model
+    run_after:
+      - generate_data
+
+  - class: template_pipelines.steps.aml_sweep.consumer:SweepConsumer
+    name: sweep_consumer
+    inputs:
+      - trial_params
+      - cf_trial_params
+      - trial_model
+      - cf_trial_model
+    run_after:
+      - my_sweep
+
+params:
+  # sweep step trials params
+  boosting_type: gbdt
+  learning_rate: 0.1
+  # other lightgbm training params
+  metric: multi_logloss
+  num_iterations: 16
+  max_leaf_nodes: 31
+  random_seed: 42
+  verbose: 0

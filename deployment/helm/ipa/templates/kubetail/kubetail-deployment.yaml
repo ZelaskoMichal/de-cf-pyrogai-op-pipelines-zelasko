@@ -1,0 +1,112 @@
+{{ if (.Values.ipa.enable_kubetail) }}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-kubetailapi
+  labels:
+    app.kubernetes.io/name: kubetail
+    app.kubernetes.io/instance: kubetail
+    app.kubernetes.io/managed-by: Helm
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubetail
+      app.kubernetes.io/instance: kubetail
+      release: {{ .Release.Name }}
+  replicas: 1
+  revisionHistoryLimit: 10
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubetail
+        app.kubernetes.io/instance: kubetail
+        app.kubernetes.io/managed-by: Helm
+        release: {{ .Release.Name }}
+      annotations:
+        checksum/config: 216a3e006caa7672c25998490d326e53cb32e8eb04c1d2338d43fef0757a352d
+    spec:
+      automountServiceAccountToken: true
+      serviceAccountName: {{ .Release.Namespace }}-sa
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: kubetail-api
+        image: {{ .Values.ipa.kubetail_image_full }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 999
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-envvars
+        ports:
+        - name: kubetail
+          protocol: TCP
+          containerPort: 4000
+        command:
+        - '/bin/bash'
+        - '-c'
+        args:
+        - |
+            {{ .Values.istio.wait_for_istio }}
+            cd /app
+            ./server --config=/etc/kubetail/config.yaml
+            EXITCODE=$?
+            {{ .Values.istio.quit_istio }}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 4000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 30
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 4000
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 30
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/kubetail
+          readOnly: true
+        - name: istio-scripts
+          mountPath: /etc/istio_scripts
+        - name: tmp-folder
+          mountPath: /tmp
+      nodeSelector:
+        kubernetes.io/os: linux
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-{{ .Chart.Name }}-kubetail-conf
+      - name: istio-scripts
+        configMap:
+          name: {{ $.Release.Name }}-{{ $.Chart.Name }}-istio-scripts
+          defaultMode: 0755
+      - name: tmp-folder
+        emptyDir: {}
+{{ end }}

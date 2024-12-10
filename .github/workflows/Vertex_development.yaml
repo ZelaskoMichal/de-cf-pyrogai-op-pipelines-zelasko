@@ -1,0 +1,320 @@
+name: e2e tests on vertex
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      pipelines_filepath:
+        required: true
+        type: string
+      environment-name:
+        required: true
+        type: string
+jobs:
+  vertex_pipeline_development:
+    name: Deploy to ${{ inputs.environment-name }} Vertex
+    env:
+      pipelines: ${{ inputs.pipelines }}
+      environment-name: ${{ inputs.environment-name }}
+      PIP_VENV: ".venv-pip/"
+      JFROG_URL: png.jfrog.io/artifactory/api/pypi/pgg-dna-pypi-virtual
+      JFROG_USERNAME: itsmlops.im
+      JFROG_API_KEY_FILE: ".jfrog-api-key"
+      GCP_SERVICE_ACCOUNT: sa-stepsdeploy@dna-aif-dev-dev-ebbb.iam.gserviceaccount.com
+      GCP_WORKLOAD_IDENTITY_PROVIDER: projects/850845466029/locations/global/workloadIdentityPools/github/providers/github
+      GCP_PROJECT_ID: dna-aif-dev-dev-ebbb
+    permissions:
+      actions: write # cancel workflow run
+      checks: write # create a check run
+      contents: read
+      deployments: write # create new deployment
+      id-token: write
+      pull-requests: read
+      statuses: write # write back deployment status
+    runs-on: pg_custom_runner
+    strategy:
+      matrix:
+        python-version: [3.9]
+    steps:
+      # Do not remove: useful for debug purposes
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      # Do not remove: it fetches your code in the current dir
+      - name: Fetch code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: false
+          fetch-depth: 0
+
+      - name: Validate USER_GITHUB_TOKEN token
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: bash test/github_token_validation.sh
+
+      - name: Configure USER_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$USER_GITHUB_TOKEN; }; f"
+          echo '::warning::Using USER_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+      - name: Get Pull Request sha
+        id: get_pull_request_sha
+        if: ${{ github.event_name == 'issue_comment' }}
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/:repository/pulls/:issue_id
+          repository: ${{ github.repository }}
+          issue_id: ${{ github.event.issue.number }}
+          token: ${{ secrets.USER_GITHUB_TOKEN }}
+
+      - name: Set deployment parameters
+        id: set_params
+        env:
+          ENVNAME: pr${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
+          SHA: ${{ github.event_name == 'issue_comment' && fromJson(steps.get_pull_request_sha.outputs.data).head.sha || github.event.pull_request.head.sha }}
+        run: |
+          echo "envname=${ENVNAME}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+      # Do not remove: it enables Continuous Winning
+      - name: Login to the GitHub Docker Registry for getting Continuous Winning
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghcr.io
+          username: pgcw
+          password: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+      - name: Cancel All Outdated Workflows
+        if: |
+          startsWith(github.ref, 'refs/heads/') || startsWith(github.event_name, 'pull_request')
+        uses: ./cw
+        with:
+          check: cancel-uncompleted-workflows
+          args: "--token ${{ secrets.PG_DNA_GITHUB_TOKEN }} --workflows DBR_development.yaml --preserve-run most-recent"
+
+      - name: Define ANSI colors for nice console prints
+        run: |
+          echo "BLACK=\033[0;30m" >> "$GITHUB_ENV"
+          echo "RED=\033[0;31m" >> "$GITHUB_ENV"
+          echo "GREEN=\033[0;32m" >> "$GITHUB_ENV"
+          echo "YELLOW=\033[0;33m" >> "$GITHUB_ENV"
+
+      - name: Check if USER_GITHUB_TOKEN and GITHUB_TOKEN are present
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          secrets=("GITHUB_TOKEN $GITHUB_TOKEN")
+          missing_secrets=()
+          for secret in "${secrets[@]}"
+          do
+              set -- $secret
+              if [[ ! $2 ]]; then
+                  missing_secrets+=($1)
+              fi
+          done
+          if [[ $missing_secrets ]]; then
+              echo "::error::Missing secrets: [${missing_secrets[*]}]. Please set these required secrets."
+              exit 1
+          fi
+          if [[ ! $USER_GITHUB_TOKEN ]]; then
+              MSG='Secret `USER_GITHUB_TOKEN` was not found.'
+              MSG="${MSG} It should be an User Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} Save it here - https://github.com/procter-gamble/de-cf-template-pipelines/settings/secrets/actions - as an USER_GITHUB_TOKEN secret."
+              MSG="${MSG} Then go here - https://portal.azure.com - to populate KeyVault Manager with Github Token. Save it as a gh-token."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+      - name: Remove Old And Unused Docker Images From GitHub Runner
+        run: |
+          docker images | grep pyrogai_base | awk '{print $3}' | xargs docker rmi -f || (echo "Image $IMAGE was not in the local registry, so not removed."; exit 0)
+
+      - name: PLACEHOLDER_PRE_INSTALL_START
+        run: |
+          echo "If you need to update steps which happens before any installs, add your steps after this one"
+
+      - name: Add custom requirements.txt files to be installed in addition to the standard ones
+        run: |
+          # Set it to something like PYROGAI_EXTRA_REQUIREMENTS='requirements-this.txt requirements-that.txt'
+          # Keep in mind that requirements.txt and requirements-devel.txt are already installed by default
+          echo "PYROGAI_EXTRA_REQUIREMENTS=" >> "$GITHUB_ENV"
+
+      - name: PLACEHOLDER_PRE_INSTALL_END
+        run: |
+          echo "If you need to update steps which happens before any installs, add your steps before this one"
+
+      - id: google-auth
+        name: Authenticate with Google Cloud
+        uses: "google-github-actions/auth@v2"
+        with:
+          token_format: access_token
+          project_id: ${{env.GCP_PROJECT_ID}}
+          workload_identity_provider: ${{env.GCP_WORKLOAD_IDENTITY_PROVIDER}}
+          service_account: ${{env.GCP_SERVICE_ACCOUNT}}
+          create_credentials_file: true
+          access_token_lifetime: 3000s
+
+      - name: Set up Google Service Account
+        run: |
+          gcloud auth list
+          gcloud config set project '${{env.GCP_PROJECT_ID}}'
+
+          gcloud auth configure-docker
+          gcloud auth configure-docker us-east4-docker.pkg.dev
+          gcloud config get-value project
+
+      - name: Fetch JFrog authentication key
+        run: |
+          gcloud secrets versions access latest --project='dna-utils-prod-ed70' --secret=jfrog-token 1> $JFROG_API_KEY_FILE
+          grep -q '[^[:space:]]' $JFROG_API_KEY_FILE || (echo "JFrog token could not be fetched; quitting" && exit 1)
+
+      - name: Setup pip to use JFrog
+        env:
+          PIP_CONFIG_FILE: ".pip/pip.conf"
+        run: |
+          mkdir -p .pip || echo ".pip path exist."
+          touch $PIP_CONFIG_FILE
+          echo "JFrog URI: $JFROG_URL"
+          cat > $PIP_CONFIG_FILE << EOF
+          [global]
+          index-url = https://$JFROG_USERNAME:$(<$JFROG_API_KEY_FILE)@$JFROG_URL/simple/
+          trusted-host = $JFROG_URL
+          EOF
+          mkdir -p $HOME/.config/pip/
+          cp $PIP_CONFIG_FILE $HOME/.config/pip/pip.conf
+
+      # Enable Python
+      - name: Enable Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3.1.2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Retrieve exact Python minor version
+        id: get-exact-py-ver
+        run: echo "python-version=$(python -V | grep -oE '([0-9]+\.){2}[0-9]+' | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore venv from cache for Python ${{ steps.get-exact-py-ver.outputs.python-version }}
+        uses: actions/cache/restore@v3
+        id: cache-venv
+        with:
+          path: .venv
+          key: pg-cw-venv-${{ runner.os }}-py${{ steps.get-exact-py-ver.outputs.python-version }}-${{ hashFiles('requirements*.txt', 'pyproject.toml') }}
+
+      - name: Create venv
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: python -m venv .venv
+
+      - name: Install Python Dependencies
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          source .venv/bin/activate
+          pip install -U pip
+          pip install uv
+          for REQ in requirements.txt requirements-devel.txt $PYROGAI_EXTRA_REQUIREMENTS; do
+              ERR=0
+              echo "::group::Installing $REQ using uv pip"
+              uv pip install -r "$REQ" || ERR=$?
+              echo "::endgroup::"
+              if [[ $ERR != 0 ]]; then
+                  echo "::error::Failed uv pip installation of $REQ - exitcode was $ERR"
+                  false  # abort installation
+              fi
+          done
+
+      - name: List all installed packages
+        run: |
+          set -e
+          source .venv/bin/activate
+          pip freeze
+
+      - name: Save venv to Python dependencies to cache
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        id: cache-save
+        with:
+          path: .venv
+          key: ${{ steps.cache-venv.outputs.cache-primary-key }}
+
+      # Now install the Python package itself
+      - name: Install This Python Package
+        run: |
+          set -e
+          source .venv/bin/activate
+          pip install -U pip
+          pip install uv
+          uv pip install --no-deps -e .
+
+      - name: PLACEHOLDER_PRE_PIPELINE_START
+        run: |
+          echo "If you need to update steps which happens before any pipeline runs, add your steps after this one"
+
+      - name: PLACEHOLDER_PRE_PIPELINE_END
+        run: |
+          echo "If you need to update steps which happens before any pipeline runs, add your steps before this one"
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: pipelines_artifact
+          path: pipeline_artifact_path/${{ github.head_ref }}
+
+      - name: Display structure of downloaded files
+        run: |
+          ls pipeline_artifact_path -R
+
+      - name: Run pyrogai commands
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_BRANCH: ${{ github.head_ref }}
+          GH_REF: ${{ steps.set_params.outputs.sha }}
+
+          SSL_CA_CERT: /usr/local/share/ca-certificates/PG-Root-CA.crt
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          CUSTOM_RUN_FILE: .github/workflows/Vertex_dev_custom_runs.txt
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+        run: |
+          source .venv/bin/activate
+          export PYTHONPATH=$PWD/src:$PYTHONPATH
+          # aif secret add --config-module template_pipelines.config --secret jfrog-token --value $(<$JFROG_API_KEY_FILE) --environment dev --platform Vertex --no-add-suffix-env --no-add-suffix-namespace
+          # aif secret add --config-module template_pipelines.config --secret gh_token --value ${{ secrets.USER_GITHUB_TOKEN }} --environment dev --platform Vertex --no-add-suffix-env --no-add-suffix-namespace
+          echo "Filepath: ${{ inputs.pipelines_filepath }}"
+          cd pipeline_artifact_path/${{ github.head_ref }}
+          pipelines=$(<pipelines.txt)
+          pipelines=$(echo "$pipelines" | paste -sd, -)
+          echo "Pipelines variable: $pipelines"
+          if [[ -n "${pipelines}" ]]; then
+            # Remove leading/trailing whitespace and newlines
+            pipelines=$(echo "$pipelines" | awk '{$1=$1};1' | awk NF)
+            IFS=$',' read -ra DIRS <<< "$pipelines"
+              if [[ "${#DIRS[@]}" -eq 0 ]]; then
+                echo "No pipelines found in the variable."
+              else
+                for ITEM in "${DIRS[@]}"; do
+                  echo "Running Pipeline $ITEM."
+                  aif pipeline run --debug --platform Vertex --github-deployments --pipelines $ITEM --config-module template_pipelines.config --environment dev
+                  echo -e "\nPipeline run for $ITEM finished.\n"
+                done
+              fi
+          else
+              echo "Pipelines variable is empty. "
+          fi
+
+      - name: PLACEHOLDER_POST_PIPELINE_START
+        run: |
+          echo "If you need to update steps which happens after any pipeline runs, add your steps after this one"
+
+      - name: PLACEHOLDER_POST_PIPELINE_END
+        run: |
+          echo "If you need to update steps which happens after any pipeline runs, add your steps before this one"
+
+      - name: Clean up JFrog token
+        run: |
+          rm -f $JFROG_API_KEY_FILE

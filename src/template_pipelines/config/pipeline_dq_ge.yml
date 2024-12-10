@@ -1,0 +1,65 @@
+name: dq_ge
+description: Pipeline implementation of Data Quality and Great Expectations
+experiment: template
+runtime: runtime_dq_ge
+compute: small
+scope: dq-ge
+platforms:
+  - AML
+  - Local
+  - Vertex
+  - DBR
+
+steps:
+  # ---------------------------------------------------------------------------
+  # Just loading step
+  # you can put whatever you need to into your `dq_ge_1_data_loading.py` to load your data
+  - name: data_loading
+    class: template_pipelines.steps.dq_ge.dq_ge_1_data_loading:DataLoaderStep
+  # ---------------------------------------------------------------------------
+  #
+  # These are data quality steps. One is based on your dq class, another one is based
+  # on pyrogai dq class. You can choose here the approach that suits you better.
+  # Remove step you don't need based on whether you use your DQ class or pyrogai one
+  #
+  # What is the difference between pyrogai DQ and your own DQ class?
+  # In your DQ step you can put more logic/validations which you for example cannot find in GE gallery
+  #
+  # DQ step based on your class
+  - name: initial_data_validation
+    class: template_pipelines.steps.dq_ge.dq_ge_2_initial_data_validation:InitialDqStep
+    run_after:
+      - data_loading
+  # DQ step based on pyrogai class. This type of DQ class does not require
+  # additional step/file in your pipeline folder.
+  # You configure everything in the `config_dq-ge.yaml`
+  - name: initial_data_validation_dq
+    class: aif.pyrogai.steps:DqStep
+    run_after:
+      - data_loading
+  # ---------------------------------------------------------------------------
+  #
+  #
+  # Just data processing step
+  # Replace its contents with your needs and add other steps if you need
+  - name: data_processing
+    class: template_pipelines.steps.dq_ge.dq_ge_3_data_processing:DataProcessingStep
+    run_after:
+      - initial_data_validation # delete this if you use DQ based on pyrogaAI DQ class
+      - initial_data_validation_dq # delete this if you use DQ based on your DQ class
+  # ---------------------------------------------------------------------------
+  #
+  #
+  # This is the same like above in initial_data_validation
+  # but created for post processing data validation.
+  # Remove step you don't need based on whether you use your DQ class or pyrogai one
+  - name: post_processing_data_validation
+    class: template_pipelines.steps.dq_ge.dq_ge_4_post_processing_data_validation:PostProcessingDqStep
+    run_after:
+      - data_processing
+
+  - name: post_processing_data_validation_dq
+    class: aif.pyrogai.steps:DqStep
+    run_after:
+      - data_processing
+  # ---------------------------------------------------------------------------

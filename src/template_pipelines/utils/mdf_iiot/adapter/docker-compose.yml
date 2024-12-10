@@ -1,0 +1,35 @@
+version: "3"
+services:
+  simulator:
+    hostname: simulator
+    build:
+      context: ./sim
+      dockerfile: Dockerfile
+    networks:
+      - vnet
+    healthcheck:
+      test: "exit 0"
+  mk01-iris-inspect-flowers:
+    hostname: mk01-iris-inspect-flowers
+    image: acrci3415437dev01.azurecr.io/aif/demo/mdf_model
+    environment:
+      - ConfigurationAddress=simulator:14001
+      - SupervisorAddress=simulator:14000
+      - MlManagerAddress=simulator:20001
+      - EndpointLookup=mk01-iris-inspect-flowers
+      - RootScope=/pg/edges/edge01
+      - RootCertificatePath=certs/simulator_root_ca.pem
+      - CertificatePath=certs/adapter.pem
+      - CertificateKeyPath=certs/adapter.key
+      - Hostname=mk01-iris-inspect-flowers
+      - Environment=development
+    depends_on:
+      simulator:
+        condition: service_healthy
+    networks:
+      - vnet
+    healthcheck:
+      test: "exit 0"
+
+networks:
+  vnet:

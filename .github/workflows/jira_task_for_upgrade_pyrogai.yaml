@@ -1,0 +1,49 @@
+name: Create JIRA Issue for Pyrogai update
+
+on:
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  check_pr_title_and_create_jira_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Title and Extract Version
+        id: check_title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PREFIX="AUTO: Update PyrogAI to "
+          if [[ "$PR_TITLE" == *"${PREFIX}"* ]]; then
+              echo "PR title contains the prefix."
+              # Extract the version
+              VERSION=$(echo "$PR_TITLE" | grep -oP "(?<=${PREFIX})\S+")
+              echo "Version extracted: $VERSION"
+              echo "::set-output name=create_issue::true"
+              echo "::set-output name=version::$VERSION"
+          else
+              echo "PR title does not contain the prefix. Skipping JIRA issue creation."
+              echo "::set-output name=create_issue::false"
+          fi
+
+      - name: Log in to JIRA
+        if: steps.check_title.outputs.create_issue == 'true'
+        uses: atlassian/gajira-login@v3
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Create JIRA issue
+        if: steps.check_title.outputs.create_issue == 'true'
+        uses: atlassian/gajira-create@v3
+        with:
+          project: "TPT"
+          issuetype: "Story"
+          summary: "Pyrogai version ${{ steps.check_title.outputs.version }} is merged"
+          description: "Please merge the PR: ${{ github.event.pull_request.html_url }}"
+          fields: |
+            {
+              "customfield_10177": "All pipelines and workflows work and PR is merged",
+              "customfield_10102": 0.5
+            }
+

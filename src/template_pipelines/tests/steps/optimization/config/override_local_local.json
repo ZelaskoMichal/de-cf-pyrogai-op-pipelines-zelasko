@@ -1,0 +1,13 @@
+{
+    "iocontext": {
+        "local_workdir": "/tmp/optimization_tests/pyrogai_run/{run_id}"
+    },
+    "meta_iocontext": {
+        "local_workdir": "/tmp/optimization_tests/pyrogai_run_meta/{run_id}"
+    },
+    "mlflow_tracking_uri": "/tmp/optimization_tests/mlruns/{pipeline_name}",
+    "platform": "local",
+    "workdir": {
+        "local_workdir": "/tmp/pyrogai_data"
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "iocontext": {
+        "local_workdir": "/tmp/pyrogai_run/{run_id}",
+        "remote_workdir": "gs://{gcp_bucket}/runs/{environment}/{utc_year}/{utc_month}/{utc_day}/{utc_full_dashes}_{run_id}"
+    },
+    "meta_iocontext": {
+        "local_workdir": "/tmp/pyrogai_run/meta/{run_id}",
+        "remote_workdir": "gs://{gcp_bucket}/runs/meta/{run_id}"
+    },
+    "mlflow_iocontext": {
+        "local_workdir": "/tmp/pyrogai_run/mlflow/{run_id}/mlruns",
+        "remote_workdir": "gs://{gcp_bucket}/runs/mlflow/{environment}/{utc_year}/{utc_month}/{utc_day}/{utc_full_dashes}_{run_id}"
+    }
+}

@@ -1,0 +1,22 @@
+name: realtime_inference_backend
+type: real_time_endpoint
+client_info:
+  proxy: http://zeeuproxy.eu.pg.com:9400
+  resource_group: AZ-RG-AIP-MLWPYROGAICSE
+  subscription_id: 27c0a03b-f477-4c6d-b9a9-608e91d2e83b
+  workspace_name: mlwpyrogaicse
+environments:
+  - dev
+  - stg
+  - prod
+runtimes:
+  inference:
+    docker_args:
+      build_args:
+        REQUIREMENTS: src/template_pipelines/reqs/requirements_realtime_inference.txt
+      secrets:
+        - gh_token
+    scoring_script: template_pipelines.utils.realtime_inference.realtime_scoring
+    endpoint_name: realtime-inference-endpoint
+    deployment_name: deployment-{utc_date}{utc_time}
+    sample_request: src/template_pipelines/config/realtime_sample_request.json

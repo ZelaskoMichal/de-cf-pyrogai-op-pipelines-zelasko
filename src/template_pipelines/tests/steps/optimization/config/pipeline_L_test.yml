@@ -1,0 +1,7 @@
+# Common config for tests: L0, L1, L2 to run FormulateAndSolve only
+name: test_formulate_and_solve_step
+experiment: L_test
+compute: small
+steps:
+  - name: formulate_and_solve
+    class: template_pipelines.steps.optimization.formulate_and_solve:FormulateAndSolve

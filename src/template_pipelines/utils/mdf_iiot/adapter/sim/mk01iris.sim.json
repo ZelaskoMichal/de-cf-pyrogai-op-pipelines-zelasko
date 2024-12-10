@@ -1,0 +1,45 @@
+{
+  "EndpointName": "mk01-iris-inspect-flowers",
+  "MetricsScope": "~plant=Contoso~edge=edge01~line=mk01~workload=iris~adapter=mk01-iris-inspect-flowers",
+  "Scope": "~pg~edges~edge01~adapters~mk01-iris-inspect-flowers",
+  "Grpc": {
+    "HostName": "auto",
+    "Port": 6668,
+    "SendTimeout": 300,
+    "LogDeliveryFailures": false,
+    "SignalOnShutdown": false,
+    "NotifyOnConfigurationChange": true,
+    "Expects": {
+      "TimeSeriesMessages": [
+        {
+          "DataPathKey": "*"
+        }
+      ],
+      "TagTimeSeriesMessages": [],
+      "DataSetMessages": []
+    }
+  },
+  "GenerateData": {
+    "Script": {
+      "ScriptPath": "create_input_data.py",
+      "DataPathKey": "iris-measurements",
+      "Delay": 10000
+    }
+  },
+  "DataSetRecorderDefinitions": null,
+  "RestApiEndpoints": null,
+  "PublishToMqtt": false,
+  "Configuration": {
+    "ingressendpoint": {
+      "type": "gRPC",
+      "server": "[::]:6668"
+    },
+    "prometheus": {
+      "type": "http",
+      "port": "9600"
+    },
+    "logging": {
+      "level": "DEBUG"
+    }
+  }
+}

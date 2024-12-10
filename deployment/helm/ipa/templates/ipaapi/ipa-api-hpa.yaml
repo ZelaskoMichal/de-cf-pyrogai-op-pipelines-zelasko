@@ -1,0 +1,58 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-ipaapi
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-{{ .Chart.Name }}-ipaapi
+  {{- if hasPrefix "dev" .Release.Name }}
+  minReplicas: {{ (.Values.ipa.horizontal_autoscaler_envs).dev.min_replicas | default 1 }}
+  maxReplicas: {{ (.Values.ipa.horizontal_autoscaler_envs).dev.max_replicas | default 1 }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ (.Values.ipa.horizontal_autoscaler_envs).dev.avg_cpu | default 50 }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ (.Values.ipa.horizontal_autoscaler_envs).dev.avg_memory | default 50 }}
+  {{- else if eq "stg" .Release.Name }}
+  minReplicas: {{ (.Values.ipa.horizontal_autoscaler_envs).stg.min_replicas | default 1 }}
+  maxReplicas: {{ (.Values.ipa.horizontal_autoscaler_envs).stg.max_replicas | default 5 }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ (.Values.ipa.horizontal_autoscaler_envs).stg.avg_cpu | default 50 }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ (.Values.ipa.horizontal_autoscaler_envs).stg.avg_memory | default 50 }}
+  {{- else if eq "prod" .Release.Name }}
+  minReplicas: {{ (.Values.ipa.horizontal_autoscaler_envs).prod.min_replicas | default 1 }}
+  maxReplicas: {{ (.Values.ipa.horizontal_autoscaler_envs).prod.max_replicas | default 5 }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ (.Values.ipa.horizontal_autoscaler_envs).prod.avg_cpu | default 50 }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ (.Values.ipa.horizontal_autoscaler_envs).prod.avg_memory | default 50 }}
+  {{ end }}

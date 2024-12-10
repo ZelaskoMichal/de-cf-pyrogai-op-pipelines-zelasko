@@ -1,0 +1,13 @@
+{
+    "gu_translation": {
+        "genai_url": "https://genai-platform-dev.pg.com/stg/v1",
+        "service_endpoint": "/agents/translate/v1",
+        "cognitive_services": "https://cognitiveservices.azure.com/.default",
+        "headers": {
+            "userid": "aif_tpt@pg.com",
+            "accept": "application/json",
+            "project-name": "AIFactory TPT"
+        },
+        "thread_num": 15
+    }
+}

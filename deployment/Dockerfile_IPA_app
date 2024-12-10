@@ -1,0 +1,24 @@
+ARG IPA_FULL_CACHE_IMAGE
+
+FROM ${IPA_FULL_CACHE_IMAGE}
+
+ENV VENVDIR=/virtualenvs/ipa
+
+# Add produced wheel to the container for installation
+ADD dist/*.wh[l] /build/
+
+# Install package without dependencies (already installed in previous layer)
+RUN set -x \
+    && . ${VENVDIR}/bin/activate \
+    && pip install --no-deps /build/*.whl
+
+# Prepare entrypoint script
+RUN cat > /ipa-entrypoint.sh <<\EoF
+#!/bin/bash -e
+source ${VENVDIR}/bin/activate
+exec ipa "$@"
+EoF
+RUN chmod 0777 /ipa-entrypoint.sh
+
+ENTRYPOINT ["/ipa-entrypoint.sh"]
+CMD ["run", "--host", "0.0.0.0"]

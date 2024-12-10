@@ -1,0 +1,60 @@
+name: Update Github labels
+
+on:
+  push:
+    paths:
+      - "index.json"
+
+
+jobs:
+  run_python_script:
+    name: Update github labels
+    runs-on: ["self-hosted", "X64", "Linux", "az-org-da-prod"]
+
+    steps:
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+        # Check if the proper secret has been set - it should be an org token
+      - name: Check if secret PG_DNA_GITHUB_TOKEN is available
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $PG_DNA_GITHUB_TOKEN ]]; then
+              MSG="Secret `PG_DNA_GITHUB_TOKEN` was not found."
+              MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+        # Use PG_DNA_GITHUB_TOKEN by default for all git operations
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+          echo "::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble"
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+
+      - name: Install Python Dependencies
+        run: |
+          set -e
+          pip install -U pip
+          pip install uv
+          uv pip install --system -r requirements-scripts/requirements-create-label-github.txt
+
+      - name: Run Python script
+        run: python scripts/create_label_github.py
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}

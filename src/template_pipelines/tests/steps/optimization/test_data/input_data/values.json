@@ -1,0 +1,4 @@
+{
+    "penalty_max_number_risky": 0.10,
+    "penalty_min_number_per_region": 0.10
+}

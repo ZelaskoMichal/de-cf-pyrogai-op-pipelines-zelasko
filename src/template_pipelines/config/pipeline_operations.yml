@@ -1,0 +1,30 @@
+name: operations
+description: Demonstrates a general operations pipeline.
+experiment: operations_exp
+compute: small
+runtime: runtime_operations
+scope: operations
+platforms:
+  - AML
+  - Local
+  - DBR
+  - Vertex # mlflow doesnt use it but notification step needs this
+
+input_output_slots:
+  - name: RMSE_california_flats
+    type: mlflow_artifact
+    artifact_path: california_flats_plot
+
+steps:
+  - class: template_pipelines.steps.operations.logging:LoggingStep
+    name: logging
+  - class: template_pipelines.steps.operations.mlflow:MlflowStep
+    name: mlflow
+    run_after:
+      - logging
+    outputs:
+      - RMSE_california_flats
+  - class: template_pipelines.steps.operations.notification:NotificationStep
+    name: notification
+    run_after:
+      - mlflow

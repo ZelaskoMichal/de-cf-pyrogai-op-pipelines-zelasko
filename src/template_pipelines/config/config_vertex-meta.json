@@ -1,0 +1,8 @@
+{
+    "vertex_meta":{
+        "data_dir": "ModelOutputDir",
+        "project_name": "dna-aif-dev-dev-ebbb",
+        "experiment": "template-meta",
+        "staging_bucket": "gs://dna-aif-dev-dev-ebbb-kubeflow-sa-op-pipelines-4togb0aa/staging"
+    }
+}

@@ -1,0 +1,19 @@
+name: orchestration
+description: Demonstrates how to orchestrate and scale running multiple pipelines using Rhea orchestration
+experiment: orchestration-rhea
+runtime: runtime_orchestration
+compute: small
+scope: orchestration
+
+params:
+  dest_platform: DBR
+
+platforms:
+  - AML
+  - Local
+  - DBR
+  - Vertex
+
+steps:
+  - class: template_pipelines.steps.orchestration.trigger_pipelines:TriggerPipelinesStep
+    name: trigger_pipelines

@@ -1,0 +1,6 @@
+pyrogai[azureml,vertex,dbr,local] @ git+https://github.com/procter-gamble/de-cf-pyrogai@v1.5.1
+sweetviz
+klib
+dabl
+missingno
+matplotlib

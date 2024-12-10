@@ -1,0 +1,31 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+{{ if or ( eq (.Release.Name) "prod" )
+  (eq (.Release.Name) "stg")
+  ( eq (default .Values.ipazero.enable_persistence_on_pr false) true ) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-rabbitmqstorage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  storageClassName: default
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-redisstorage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  storageClassName: default
+  resources:
+    requests:
+      storage: 1Gi
+{{- end }}
+{{- end }}

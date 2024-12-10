@@ -1,0 +1,37 @@
+{
+    "ml_skeleton": {
+        "parameter": "value"
+    },
+    "great_expectations": {
+        "suites": {
+            "feature_creation.critical": {
+                "file": "feature_created/features.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "col1",
+                            "mostly": 0.8
+                        }
+                    }
+                ]
+            },
+            "imputation_scaling.warning": {
+                "file": "imputed_scaled/imputed_scaled.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "col1",
+                            "mostly": 0.8
+                        }
+                    }
+                ]
+            }
+        },
+        "steps": {
+            "data_validation_after_feature_creation": [],
+            "data_validation_after_imputation": []
+        }
+    }
+}

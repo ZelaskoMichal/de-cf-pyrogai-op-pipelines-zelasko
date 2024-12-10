@@ -1,0 +1,20 @@
+compute: small
+description: A general real-time inference pipeline continuously processes incoming data to deliver immediate predictions or decisions.
+experiment: realtime-inference
+name: realtime_inference
+runtime: runtime_realtime_inference
+platforms:
+  - AML
+  - Local
+
+scope: realtime-inference
+
+input_output_slots:
+  - name: realtime_inference_model
+    type: basic
+
+steps:
+  - class: template_pipelines.steps.realtime_inference.log_model:LogModel
+    name: log_model
+    outputs:
+      - realtime_inference_model

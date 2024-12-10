@@ -1,0 +1,47 @@
+{
+    "backends": {
+        "local": {
+            "local": {
+                "config_module": "template_pipelines.config",
+                "extra_pipeline_run_params": [
+                    "--environment",
+                    "local",
+                    "--debug"
+                ],
+                "include_published_pipelines": null
+            }
+        },
+        "azureml2": {
+            "aml": {
+                "tenant_id": "3596192b-fdf5-4e2c-a6fa-acb706c963d8",
+                "subscription_id": "27c0a03b-f477-4c6d-b9a9-608e91d2e83b",
+                "resource_group": "AZ-RG-AIP-MLWPYROGAICSE",
+                "workspace": "mlwpyrogaicse"
+            }
+        },
+        "vertex": {
+            "vertex": {
+                "gcp_project_id": "dna-aif-dev-dev-ebbb",
+                "gcp_bucket": "dna-aif-dev-dev-ebbb-kubeflow-sa-op-pipelines-4togb0aa",
+                "region": "us-east4",
+                "service_account": "sa-op-pipelines",
+                "artifact_registry_pipelines": "pipelines-sa-op-pipelines",
+                "network": "network-aifactory-dswb"
+            }
+        },
+        "databricks": {
+            "dbr": {
+                "tenant_id": "3596192b-fdf5-4e2c-a6fa-acb706c963d8",
+                "host": "https://adb-6002052623675423.3.azuredatabricks.net/",
+                "aml": {
+                    "tenant_id": "3596192b-fdf5-4e2c-a6fa-acb706c963d8",
+                    "subscription_id": "27c0a03b-f477-4c6d-b9a9-608e91d2e83b",
+                    "resource_group": "AZ-RG-AIP-MLWPYROGAICSE",
+                    "workspace_name": "mlwpyrogaicse"
+                },
+                "consider_pipelines_with_no_version_tag" : false
+            }
+        }
+    },
+    "custom_endpoints_module": "template_pipelines.custom_ipa_endpoints"
+}

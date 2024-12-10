@@ -1,0 +1,4 @@
+name: realtime_inference_models
+models:
+  - name: realtime_inference_model
+    version: 5

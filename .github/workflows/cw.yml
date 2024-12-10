@@ -1,0 +1,416 @@
+name: P&G Continuous Winning (Continuous Integration) DEV
+
+on:
+  pull_request: # will always use the workflow definition from master/main, not your PR!
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  release:
+    types: [prereleased]
+
+jobs:
+  jfrog_authentication:
+    runs-on: ubuntu-latest
+    steps:
+      # Do not remove: useful for debug purposes
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      # JFrog authentication steps. Provide your credentials in GitHub secrets if needed.
+      # These steps don't verify if provided credentials are correct.
+      - name: "Check and set JFrog credentials"
+        id: jfrog-credentials
+        env:
+          JFROG_USERNAME: ${{ secrets.PG_USERNAME }}
+          JFROG_TOKEN: ${{ secrets.JF_API_KEY }}
+        run: |
+          if [ -z "$JFROG_USERNAME" ] || [ -z "$JFROG_TOKEN" ]; then
+            echo "::warning::JFrog credentials missing. If your project doesn't require JFrog access - you can ignore this."
+            echo "exist=false" >> $GITHUB_OUTPUT
+          else
+            echo "PIP_EXTRA_INDEX_URL=https://${{ env.JFROG_USERNAME }}:${{ env.JFROG_TOKEN }}@png.jfrog.io/artifactory/api/pypi/pgg-python/simple" >> $GITHUB_ENV
+            echo "exist=true" >> $GITHUB_OUTPUT
+          fi
+
+      # Check for pre-existing JFrog credentials comment in PR
+      - name: Find JFrog credentials PR comment
+        if: startsWith(github.event_name, 'pull_request')
+        uses: peter-evans/find-comment@v2
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: JFrog credentials
+
+      # When there is no pre-existing JFrog credentials comment in PR
+      - name: Create PR comment if JFrog credentials exist
+        if: startsWith(github.event_name, 'pull_request') && steps.fc.outputs.comment-id == '' && steps.jfrog-credentials.outputs.exist == 'true'
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### ✅ JFrog credentials
+            Credentials found. If your project doesn't require JFrog access - you can ignore this.
+          reactions: hooray
+
+      - name: Create PR comment if JFrog credentials don't exist
+        if: startsWith(github.event_name, 'pull_request') && steps.fc.outputs.comment-id == '' && steps.jfrog-credentials.outputs.exist == 'false'
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### ⚠️ JFrog credentials
+            Credentials missing. If your project doesn't require JFrog access - you can ignore this.
+
+      # When there is a pre-existing JFrog credentials comment in PR
+      - name: Update PR comment if JFrog credentials exist
+        if: startsWith(github.event_name, 'pull_request') && steps.fc.outputs.comment-id != '' && steps.jfrog-credentials.outputs.exist == 'true'
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body: |
+            ### ✅ JFrog credentials
+            Credentials found. If your project doesn't require JFrog access - you can ignore this.
+          reactions: hooray
+          edit-mode: replace
+
+      - name: Update PR comment if JFrog credentials don't exist
+        if: startsWith(github.event_name, 'pull_request') && steps.fc.outputs.comment-id != '' && steps.jfrog-credentials.outputs.exist == 'false'
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body: |
+            ### ⚠️ JFrog credentials
+            Credentials missing. If your project doesn't require JFrog access - you can ignore this.
+          edit-mode: replace
+
+  build-and-push-docker:
+    runs-on: ubuntu-latest
+    outputs:
+      hash: ${{ steps.combined-hash.outputs.hash }}
+    steps:
+      - uses: actions/checkout@v3.5.3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Generate combined hash for requirements, Dockerfile, and pyproject.toml
+        id: combined-hash
+        run: |
+          REQUIREMENTS_HASH=$(find . -type f -name 'requirements*.txt' -exec cat {} + | sha256sum | awk '{print $1}')
+          DOCKERFILE_HASH=$(sha256sum Dockerfile | awk '{print $1}')
+          PYPROJECT_HASH=$(sha256sum pyproject.toml | awk '{print $1}') # Calculate hash for pyproject.toml
+          COMBINED_HASH=$(echo -n "$REQUIREMENTS_HASH$DOCKERFILE_HASH$PYPROJECT_HASH" | sha256sum | awk '{print $1}') # Include PYPROJECT_HASH in the combined hash calculation
+          echo "COMBINED_HASH=$COMBINED_HASH" >> $GITHUB_ENV
+          echo "::set-output name=hash::$COMBINED_HASH"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: pgcw
+          password: ${{ secrets.USER_GITHUB_TOKEN }}
+
+      - name: Check if GHCR Docker image exists
+        id: docker-image-exists
+        run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository }}/tpt-image:${{ steps.combined-hash.outputs.hash }}"
+          echo "Checking for $IMAGE_NAME"
+          if docker manifest inspect $IMAGE_NAME > /dev/null 2>&1; then
+          echo "::set-output name=exists::true"
+          echo "Image $IMAGE_NAME exists."
+          else
+          echo "::set-output name=exists::false"
+          echo "Image $IMAGE_NAME does not exist."
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.docker-image-exists.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to GitHub Container Registry
+        if: steps.docker-image-exists.outputs.exists == 'false'
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: pgcw
+          password: ${{ secrets.USER_GITHUB_TOKEN }}
+
+      - name: Build and push Docker image to GHCR.io
+        if: steps.docker-image-exists.outputs.exists == 'false'
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/tpt-image:${{ steps.combined-hash.outputs.hash }}
+          build-args: |
+            GITHUB_TOKEN=${{ secrets.USER_GITHUB_TOKEN }}
+  checks:
+    env:
+      PIP_VENV: ".venv_ci"
+      MAIN_BRANCH: "main"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+    steps:
+      # Do not remove: useful for debug purposes
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      # Check if the proper secret has been set - it should be an org token
+      - name: Check if secret USER_GITHUB_TOKEN is available
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $USER_GITHUB_TOKEN ]]; then
+            MSG="Secret `USER_GITHUB_TOKEN` was not found."
+            MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+            MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+            MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+            MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+            echo "::error::${MSG}"
+            exit 1
+          fi
+
+      # Use USER_GITHUB_TOKEN by default for all git operations
+      - name: Configure USER_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$USER_GITHUB_TOKEN; }; f"
+          echo "::warning::Using USER_GITHUB_TOKEN for git operations on github.com/procter-gamble"
+
+      - name: Check branch prefix and PR title
+        if: github.head_ref != 'main'
+        run: |
+          branch_name="${{ github.head_ref }}"
+          pr_title="${{ github.event.pull_request.title }}"
+          if [[ -z "$branch_name" ]]; then
+            echo "This is not a pull request. Skipping check."
+            exit 0
+          fi
+          new_title="$pr_title"
+          if [[ $branch_name == fix/* ]]; then
+            if [[ $pr_title != fix:* ]]; then
+              new_title="fix: $pr_title"
+            fi
+          elif [[ $branch_name == feat/* ]]; then
+            if [[ $pr_title != feat:* ]]; then
+              new_title="feat: $pr_title"
+            fi
+          elif [[ $branch_name == hotfix/* ]]; then
+            if [[ $pr_title != hotfix:* ]]; then
+              new_title="hotfix: $pr_title"
+            fi
+          else
+            echo "Branch name should start with 'fix/', 'feat/', or 'hotfix/'"
+            new_title=$pr_title
+            exit 0
+          fi
+          if [[ "$new_title" != "$pr_title" ]]; then
+            echo "Updating PR title to: $new_title"
+            curl -X PATCH \
+              -H "Authorization: token ${{ secrets.USER_GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }} \
+              -d "{\"title\":\"$new_title\"}"
+          fi
+
+      # Do not remove: fetches your code in the current dir. Full clone (0 depth), not shallow (makes SQ happy)
+      - uses: actions/checkout@v3.5.3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      # Do not remove: it enables Continuous Winning
+      - name: Login to the GitHub Container Registry for getting Continuous Winning
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghcr.io
+          username: pgcw
+          password: ${{ secrets.USER_GITHUB_TOKEN }}
+
+      # GITHUB_TOKEN is a unique secret automatically created in your workflow.
+      # The token's permissions are limited to the repository that contains your workflow.
+      # More info about GITHUB_TOKEN here: https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+      - name: Cancel All Outdated Workflows
+        if: |
+          startsWith(github.ref, 'refs/heads/') || startsWith(github.event_name, 'pull_request')
+        uses: ./cw
+        with:
+          check: cancel-uncompleted-workflows
+          args: "--token ${{ secrets.USER_GITHUB_TOKEN }} --workflows cw.yml --preserve-run most-recent"
+
+      # Check Markdown
+      - name: Lint all Markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v11
+        with:
+          command: config
+          globs: |
+            .github/workflows/config/.markdownlint.yml
+            **/*.md
+
+      # CW check. This lints your source code using Flake8. The `continue-on-error` parameter makes
+      # the test green at all times. This is OK since we have a separate red/green state for this
+      - name: Lint Python Excluding Notebooks
+        uses: ./cw
+        with:
+          check: lint-python
+          args: "--token ${{ secrets.USER_GITHUB_TOKEN }} --dirs .,src/** --dont-check-notebooks"
+        continue-on-error: true
+
+      # CW check. This makes sure notebooks have no output. It has a custom state, this is why
+      # `continue_on_error` is `true`.
+      - name: Ensure Notebooks Have No Output Cells
+        uses: ./cw
+        with:
+          check: ensure-ipynb-no-output
+          args: "--token ${{ secrets.USER_GITHUB_TOKEN }} --dirs notebooks/**"
+        continue-on-error: true
+
+      # CW check. This checks that all your modules have `__init__.py` as required
+      - name: Check Python Modules Structure
+        uses: ./cw
+        with:
+          check: check-python-modules-structure
+          args: "--dirs src/**"
+
+  checks_with_docker:
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/tpt-image:${{ needs.build-and-push-docker.outputs.hash }}
+      credentials:
+        username: pgcw
+        password: ${{ secrets.USER_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3.5.3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+        
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory /__w/de-cf-pyrogai-op-pipelines/de-cf-pyrogai-op-pipelines
+
+      # Check black
+      - name: Check black formatting
+        id: python-black-formatting
+        run: |
+          black --config pyproject.toml --check --diff ./src && echo success=true >> $GITHUB_OUTPUT
+
+      # Check isort
+      - name: Check isort formatting
+        id: python-isort-formatting
+        run: |
+          isort --settings-file pyproject.toml --check --diff ./src && echo success=true >> $GITHUB_OUTPUT
+
+      # Run static type check using Mypy
+      - name: Mypy Check
+        id: python-mypy
+        run: |
+          mypy ./src && echo success=true >> $GITHUB_OUTPUT
+
+      # Run all tests with coverage
+      - name: Run all tests with coverage
+        id: run-pytest-cov
+        run: |
+          echo "NAME=VALUE" >> $GITHUB_ENV
+          if ${{ contains(github.event.pull_request.labels.*.name, 'include-slow') }}; then
+            python test/run_pytest_cov.py --include-slow
+          else
+            python test/run_pytest_cov.py
+          fi
+
+      - name: Upload coverage reports as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            htmlcov/
+            pytest_report/
+            coverage.json
+            coverage.xml
+
+      - name: Summarize and post failed tests as comment
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          # Extract failed tests from JSON report
+          FAILED_TESTS=$(jq -r '.tests[] | select(.outcome == "failed") | .nodeid' report.json)
+
+          if [ -n "$FAILED_TESTS" ]; then
+            # Create summary
+            SUMMARY="<h2>Failed Tests Summary</h2><br>"
+            while IFS= read -r TEST; do
+              SUMMARY+="- $TEST<br>"
+              REASON=$(jq -r --arg TEST "$TEST" '.tests[] | select(.nodeid == $TEST) | .call.traceback[0].message' report.json)
+              SUMMARY+="Reason: $REASON<br><br>"
+            done <<< "$FAILED_TESTS"
+
+            # Post comment to GitHub PR
+            PAYLOAD=$(jq -n --arg body "$SUMMARY" '{body: $body}')
+            PR_NUMBER=$(jq --raw-output .number "$GITHUB_EVENT_PATH")
+            curl -s -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/comments \
+              -d "$PAYLOAD"
+          else
+            echo "No failed tests found."
+          fi
+        shell: bash
+
+  post_raport:
+    needs: [checks_with_docker, checks]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3.5.3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: coverage-reports
+
+      # Do not remove: it enables Continuous Winning
+      - name: Login to the GitHub Container Registry for getting Continuous Winning
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghcr.io
+          username: pgcw
+          password: ${{ secrets.USER_GITHUB_TOKEN }}
+
+      - name: Run SonarScanner And Push Data to SonarQube
+        uses: ./cw
+        with:
+          check: sonar-scanner
+          args: |
+            --sonar-token ${{ secrets.SONAR_TOKEN }}
+            --sonar-extra sonar.exclusions='src/template_pipelines/tests/**,src/template_pipelines/test_ipa_basic.py,src/template_pipelines/utils/mdf_iiot/adapter/**'
+            --sonar-extra sonar.cpd.exclusions='src/template_pipelines/steps/aiapps_aml/score_data.py,src/template_pipelines/steps/aiapps_dbr/score_data.py,src/template_pipelines/steps/mdf_iiot/log_model.py,src/template_pipelines/steps/realtime_inference/log_model.py,src/template_pipelines/utils/gu_translation/base_genai_step.py'
+
+      # CW check. This posts the coverage report directly as a PR comment. File `coverage.txt`
+      # produced by the previous steps must exist! The check is only executed if we are on a PR. If
+      # we are not, we have no comment thread, and therefore it does not make sense to post
+      - name: Post Coverage Report
+        uses: ./cw
+        if: |
+          startsWith(github.event_name, 'pull_request')
+        with:
+          check: post-coverage-report
+          args: "--token ${{ secrets.USER_GITHUB_TOKEN }}"
+        continue-on-error: true
+
+        # Upload build reports
+      - uses: actions/upload-artifact@v3
+        with:
+          name: build-report
+          path: |
+            htmlcov/
+            pytest_report/
+            coverage.json

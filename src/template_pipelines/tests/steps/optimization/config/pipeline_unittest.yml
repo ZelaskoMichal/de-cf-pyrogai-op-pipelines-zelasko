@@ -1,0 +1,55 @@
+name: optimization_semi_integrated_test
+experiment: optimization_semi_integrated_test
+compute: small
+
+input_output_slots:
+-   name: industries_and_regions.xlsx
+    type: cloudfile
+    url: cloud://{config.data_dir}/industries_and_regions.xlsx
+-   name: stocks.csv
+    type: cloudfile
+    url: cloud://{config.data_dir}/stocks.csv
+-   name: dq_warnings.log
+    type: cloudfile
+    url:  cloud://{config.output_dir}/{utc_year}-{utc_month}-{utc_day}_{run_id}/logs/dq_warnings.log
+-   name: solution_dq_warnings.log
+    type: cloudfile
+    url:  cloud://{config.output_dir}/{utc_year}-{utc_month}-{utc_day}_{run_id}/logs/solution_dq_warnings.log
+-   name: output_dir
+    type: cloudfile
+    url: cloud://{config.output_dir}/{utc_year}-{utc_month}-{utc_day}_{run_id}
+    is_dir: true
+-   name: output.csv
+    type: cloudfile
+    url: cloud://{config.output_dir}/{utc_year}-{utc_month}-{utc_day}_{run_id}/csv/output.csv
+-   name: output_ge_warning.html
+    type: cloudfile
+    url: cloud://{config.output_dir}/{utc_year}-{utc_month}-{utc_day}_{run_id}/logs/output_ge_warning.html
+steps:
+-   class: template_pipelines.steps.optimization.copy_input_to_ioctx:CopyInputToIoctx
+    name: copy_input_to_ioctx
+    inputs: 
+        - industries_and_regions.xlsx
+        - stocks.csv
+-   class: template_pipelines.steps.optimization.preprocess_data:PreprocessData
+    name: preprocess_data
+-   class: template_pipelines.steps.optimization.preprocessed_critical_custom_dq:PreprocessedCriticalCustomDq
+    name: preprocessed_critical_custom_dq
+-   class: template_pipelines.steps.optimization.preprocessed_warning_custom_dq:PreprocessedWarningCustomDq
+    name: preprocessed_warning_custom_dq
+    outputs:
+        - dq_warnings.log
+-   class: template_pipelines.steps.optimization.formulate_and_solve:FormulateAndSolve
+    name: formulate_and_solve
+-   class: template_pipelines.steps.optimization.solution_custom_dq:SolutionCustomDq
+    name: solution_custom_dq
+    outputs:
+        - solution_dq_warnings.log
+-   class: template_pipelines.steps.optimization.postprocess_data:PostprocessData
+    name: postprocess_data
+-   class: template_pipelines.steps.optimization.output_dq_with_save_to_ioslots:OutputWithSaveToIoslotsDqStep
+    name: output_dq_with_save_to_ioslots
+    outputs:
+        - output_dir
+        - output.csv
+        - output_ge_warning.html

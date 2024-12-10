@@ -1,0 +1,143 @@
+name: TPT Repo Validation
+
+on:
+  issue_comment:
+    types:
+      - created
+  pull_request: # will always use the workflow definition from master/main, not your PR!
+    branches:
+      - main
+
+jobs:
+  op_checks_development:
+    name: TemplatePipes checks
+    runs-on: [self-hosted, linux, x64, az-org-da-prod]
+    strategy:
+      matrix:
+        # Several Python versions can be specified: all tests will be rerun for every version
+        # Useful when migrating from one Python version to the next. Note that enabling Python is
+        # not required to run Continuous Winning (CW has its own Python environment in a Docker
+        # container): this is for running your own tests on your own code
+        python-version: [3.9]
+    if: |
+      (github.event.issue.pull_request
+      && (github.event.issue.state == 'open')
+      && (github.event.comment.body == '/deploy azureml'))
+      || (github.event.pull_request.draft == false
+      && github.event_name != 'issue_comment')
+    steps:
+      # Do not remove: useful for debug purposes
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      - name: Check if secret PG_DNA_GITHUB_TOKEN is available
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $PG_DNA_GITHUB_TOKEN ]]; then
+              MSG='Secret `PG_DNA_GITHUB_TOKEN` was not found.'
+              MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+          echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+      - name: Get Pull Request sha
+        id: get_pull_request_sha
+        if: ${{ github.event_name == 'issue_comment' }}
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/:repository/pulls/:issue_id
+          repository: ${{ github.repository }}
+          issue_id: ${{ github.event.issue.number }}
+          token: ${{ secrets.PG_GH_READ_TOKEN }}
+
+      - name: Set deployment parameters
+        id: set_params
+        env:
+          ENVNAME: pr${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
+          SHA: ${{ github.event_name == 'issue_comment' && fromJson(steps.get_pull_request_sha.outputs.data).head.sha || github.event.pull_request.head.sha }}
+        run: |
+          echo "::set-output name=envname::${ENVNAME}"
+          echo "::set-output name=sha::${SHA}"
+
+      # Do not remove: it fetches your code in the current dir
+      - name: Fetch code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+          submodules: false
+          fetch-depth: 0
+
+      # Do not remove: it enables Continuous Winning
+      - name: Login to the GitHub Docker Registry for getting Continuous Winning
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghcr.io
+          username: pgcw
+          password: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+      # Enable Python
+      - name: Enable Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4.7.1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Retrieve exact Python minor version
+        id: get-exact-py-ver
+        run: echo "python-version=$(python -V | grep -oE '([0-9]+\.){2}[0-9]+' | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached pip env
+        uses: actions/cache/restore@v3
+        id: cache-pip-venv
+        with:
+          path: .venv_op
+          key: pg-op-pipdeps-venv-${{ runner.os }}-py${{ steps.get-exact-py-ver.outputs.python-version }}-${{ hashFiles('**/requirements*.txt', 'pyproject.toml', 'index.json') }}
+          restore-keys: |
+            pg-op-pipdeps-venv-${{ runner.os }}-py${{ steps.get-exact-py-ver.outputs.python-version }}
+
+      - name: Create venv and install Python Dependencies
+        if: steps.cache-pip-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv .venv_op
+          . .venv_op/bin/activate
+          set -e
+          pip install -U pip
+          pip install uv
+          uv pip install -e .
+
+      - name: Save venv to cache
+        if: steps.cache-pip-venv.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: .venv_op
+          key: ${{ steps.cache-pip-venv.outputs.cache-primary-key }}
+
+      - name: Validate index.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.PG_GH_READ_TOKEN }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_ENV_NAME: ${{ steps.set_params.outputs.envname }}
+          GH_REF: ${{ steps.set_params.outputs.sha }}
+          GH_BRANCH: ${{ github.head_ref }}
+          PG_GH_READ_TOKEN: ${{ secrets.PG_GH_READ_TOKEN }}
+          PG_GH_WRITE_TOKEN: ${{ secrets.PG_GH_WRITE_TOKEN }}
+          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
+          SNOW_API_KEY: ${{ secrets.SNOW_API_KEY }}
+          AZURE_TENANT_ID: "3596192b-fdf5-4e2c-a6fa-acb706c963d8"
+          AZURE_CLIENT_ID: ${{ secrets.AML_APP_SP_ID_PROD }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AML_APP_SP_SECRET_PROD }}
+        run: |
+          source .venv_op/bin/activate
+          tp validate

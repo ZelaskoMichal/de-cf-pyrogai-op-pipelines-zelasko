@@ -1,0 +1,7 @@
+{
+    "bq_io":{
+        "bq_dataset": "user_utracki_m",
+        "gcp_project": "dna-aif-dev-dev-ebbb",
+        "bucket_name": "dna-aif-dev-dev-ebbb-kubeflow-sa-op-pipelines-4togb0aa"
+    }
+}

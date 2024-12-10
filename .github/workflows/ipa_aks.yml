@@ -1,0 +1,801 @@
+name: Build IPA image and deploy to AKS
+
+# This is the only part that requires configuration
+env:
+  # Image name (leave <TAG> alone, it will be dynamically replaced with the actual tag)
+  IPA_IMAGE: 'aif-ipa:<TAG>'
+  # Image cache name
+  IPA_CACHE_IMAGE: 'aif-ipa-cache:<HASH>'
+  # Full image path on the Azure Container Registry (<TAG> replaced with the actual tag)
+  IPA_IMAGE_PREFIX: 'mlwpyrogaicse4e8fykcr.azurecr.io/'
+  # The cloud container registry (ACR)
+  CLOUDCR: 'mlwpyrogaicse4e8fykcr.azurecr.io'
+  # External hostname
+  EXTERNAL_HOSTNAME: 'ipa-prod-08.pg.com'
+  # Version of Kubeconform (Kubernetes manifests validator) to use
+  KUBECONFORM_VERSION: 'v0.6.2'
+  # Version of Kubetail (a web-based, real-time log viewer for Kubernetes clusters) to use
+  KUBETAIL_VERSION: '0.3.1'
+  # Azure ML Subscription
+  AZURE_SUBSCRIPTION_ID: '27c0a03b-f477-4c6d-b9a9-608e91d2e83b'
+  # Azure ML Workgroup
+  AZURE_RESOURCE_GROUP: 'AZ-RG-AIP-MLWPYROGAICSE'
+  # Azure ML Wokspace
+  AZURE_WORKSPACE: 'mlwpyrogaicse'
+  # Kubernetes namespace where the deployment will occur; by default, pg-<repo_name>
+  K8S_NAMESPACE: 'pg-de-cf-template-pipelines'
+  # This repository's branch that will be monitored by Flux for deployments (we'll write our deployments there)
+  FLUX_BRANCH: 'fluxcd-deployment-prod'
+  # What is the Python version we use
+  PYTHON_VERSION: '3.9'
+  # Project's Python module with IPA custom endpoints
+  IPA_CUSTOM_ENDPOINTS_MODULE: 'template_pipelines.custom_ipa_endpoints'
+  # Azure storage account
+  AZURE_STORAGE_ACCOUNT: 'mlwpyrogaicse4e8fyksa'
+  # Azure container name, in the above account
+  AZURE_CONTAINER_NAME: 'azureml-blobstore-5a4bef7e-1bf4-4448-913c-e5b27ab9db0a'
+  # Databricks host, if Databricks is available
+  DBR_HOST: 'https://adb-6002052623675423.3.azuredatabricks.net/'
+  # Timeout for the `livez` endpoint to appear before running automated testing (in seconds)
+  DEPLOYMENT_TIMEOUT_S: 500
+  # Add extra requirements to be installed for testing, space-separated: 'requirements-this.txt requirements-that.txt'
+  PYROGAI_EXTRA_REQUIREMENTS: ''
+  # FOR DEBUG ONLY - Hash of the cache image to hardcode (if specified produces inconsistent images, but faster)
+  # IPA_HARDCODED_CACHE_HASH: '38ad404eefdcc93305caf6a216e6a7bec48670ef1d60590e651bbf2faaf161bc'
+  # FOR DEBUG ONLY - Hash of the image to hardcode (if specified no image build will be performed at all)
+  # IPA_HARDCODED_IMAGE_HASH: '91f8c249c8'
+
+
+on:
+  release:
+    types:
+    - released
+    - prereleased
+  pull_request:
+
+jobs:
+
+  kubetail_image:
+
+    # Building and deploying to AKS is *disabled* by default through the `if: false` statement below.
+    # Change `false` to `true` if you want to enable IPA build and AKS deployments for your repository.
+    if: false
+
+    environment: dev
+
+    runs-on: [pg_custom_runner_ubuntu22]
+    outputs:
+      enable_kubetail: ${{ steps.enable_kubetail.outputs.enable_kubetail }}
+
+    steps:
+
+    # Checkout repo to get Docker_kubetail file and value of enable_kubetail from custom-values.yaml
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    # Do not remove: it enables Continuous Winning
+    - name: Login to the GitHub Docker Registry for getting Continuous Winning
+      uses: azure/docker-login@v1
+      with:
+        login-server: ghcr.io
+        username: pgcw  # does not matter
+        password: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+    - name: Get enable_kubetail value from custom-values.yaml
+      id: enable_kubetail
+      run: |
+        set -e
+        if ! yq --help &> /dev/null; then
+            echo "::warning::Executable yq is not available in this GitHub Actions runner - assuming Kubetail is disabled"
+            echo "enable_kubetail=false" >> $GITHUB_OUTPUT
+            exit 0
+        fi
+        # Read using yq
+        eval $(yq -o=shell .ipa.enable_kubetail < deployment/helm/custom-values.yaml)  # saves a variable called `value`
+        if [[ $value == true ]]; then
+            echo "::notice::Kubetail is enabled"
+            echo "enable_kubetail=true" >> $GITHUB_OUTPUT
+        else
+            echo "::notice::Kubetail is disabled"
+            echo "enable_kubetail=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Post comment about how to enable Kubetail
+      if: |
+        steps.enable_kubetail.outputs.enable_kubetail != 'true' && startsWith(github.event_name, 'pull_request')
+      uses: ./cw
+      env:
+        body: 'You can enable Kubetail by setting `enable_kubetail: true` in ipa section in deployment/helm/custom-values.yaml file'
+      with:
+        check: post-comment
+        args: |
+          --token ${{ secrets.GITHUB_TOKEN }} --tag kubetail --body-env body
+
+    - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+      if: steps.enable_kubetail.outputs.enable_kubetail == 'true'
+      env:
+        PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+      run: |
+        set -e
+        git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+        echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+    - name: Get Kubetail repo for building kubetail image
+      if: steps.enable_kubetail.outputs.enable_kubetail == 'true'
+      id: get_kubetail
+      run: |
+        set -e
+        KT="$HOME/kubetail"
+        mkdir -p "$KT"
+        pushd "$KT"
+            curl -L https://github.com/kubetail-org/kubetail/archive/refs/tags/$KUBETAIL_VERSION.tar.gz | tar xvvzf -
+        popd
+        echo "kubetail_path=$KT" >> $GITHUB_OUTPUT
+
+    - name: Build and save Kubetail image
+      if: steps.enable_kubetail.outputs.enable_kubetail == 'true'
+      env:
+        KT_PATH: ${{ steps.get_kubetail.outputs.kubetail_path }}
+        DOCKER_BUILDKIT: "1"
+        GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+      run: |
+        set -e
+        FULL_FINAL_IMAGE=${IPA_IMAGE_PREFIX}"kubetail:"${KUBETAIL_VERSION}
+        DOCKER_FILE=`pwd`"/deployment/Dockerfile_kubetail"
+        pushd "${KT_PATH}/kubetail-${KUBETAIL_VERSION}"
+            echo "Building Kubetail image ${FULL_FINAL_IMAGE}"
+            # Build with `--secret` requires Docker 20 - it reads it from an envvar called GITHUB_TOKEN
+            docker build \
+                -f "${DOCKER_FILE}" \
+                -t "${FULL_FINAL_IMAGE}" \
+                --secret id=GITHUB_TOKEN \
+                --no-cache \
+                --network=host \
+                .
+            docker save \
+            ${FULL_FINAL_IMAGE} > /tmp/kubetail-ipa-image.tar
+            exit $ERR
+        popd
+
+    - name: Save Docker as an artifact
+      if: steps.enable_kubetail.outputs.enable_kubetail == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: kubetail-ipa-image_artifact
+        path: /tmp/kubetail-ipa-image.tar
+
+
+  ipa_build_deploy:
+
+    needs: kubetail_image
+
+    # Building and deploying to AKS is *disabled* by default through the `if: false` statement below.
+    # Change `false` to `true` if you want to enable IPA build and AKS deployments for your repository.
+    if: false
+
+    # Run on Azure self-hosted GHAR
+    runs-on: [self-hosted, linux, x64, az-org-da-prod]
+
+    outputs:
+      deployment_ref: ${{ steps.deployment_data.outputs.deployment_ref }}
+      deployment_url: ${{ steps.deployment_data.outputs.deployment_url }}
+      deployment_prefix: ${{ steps.deployment_data.outputs.deployment_prefix }}
+      gh_deployment_id: ${{ steps.get_gh_deployment_id.outputs.gh_deployment_id }}
+    steps:
+
+    - name: Determine deployment name based on what triggered this workflow
+      env:
+        EVT_NAME: ${{ github.event_name }}
+        EVT_ACTION: ${{ github.event.action }}
+        EVT_PRNUM: ${{ github.event.pull_request.number }}
+      run: |
+        if [[ $EVT_NAME == release && $EVT_ACTION == released ]]; then
+            DEPLOYMENT_NAME=prod
+        elif [[ $EVT_NAME == release && $EVT_ACTION == prereleased ]]; then
+            DEPLOYMENT_NAME=stg
+        elif [[ ${EVT_NAME:0:12} == pull_request && $EVT_PRNUM ]]; then
+            DEPLOYMENT_NAME=dev-pr${EVT_PRNUM}
+        else
+            echo '::error::This workflow is running on an unsupported GitHub Actions event, or with missing variables'
+            exit 1
+        fi
+        echo "Deployment name set to ${DEPLOYMENT_NAME} - this will impact the image name and the Kubernetes deployments"
+        echo "DEPLOYMENT_NAME=${DEPLOYMENT_NAME}" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    # Do not remove: it enables Continuous Winning
+    - name: Login to the GitHub Docker Registry for getting Continuous Winning
+      uses: azure/docker-login@v1
+      with:
+        login-server: ghcr.io
+        username: pgcw  # does not matter
+        password: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+    - name: Cancel All Outdated Workflows
+      if: |
+        startsWith(github.ref, 'refs/heads/') || startsWith(github.event_name, 'pull_request')
+      uses: ./cw
+      with:
+        check: cancel-uncompleted-workflows
+        args: '--token ${{ secrets.GITHUB_TOKEN }} --workflows ipa_aks.yml --preserve-run most-recent'
+
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      if: env.IPA_HARDCODED_IMAGE_HASH == ''
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Add Robust pip - retry some times before failing
+      run: |
+        ROBUST_PIP_DIR=$(mktemp -d)
+        cat > $ROBUST_PIP_DIR/robust_pip <<\EOF
+        #!/bin/bash -e
+        for ((I=1; I<=3; I++)); do
+          ERR=0
+          echo "Invoking pip $* - attempt #${I}"
+          pip "$@" && break || ERR=$?
+        done
+        exit $ERR
+        EOF
+        chmod 0777 $ROBUST_PIP_DIR/robust_pip
+        echo $ROBUST_PIP_DIR >> $GITHUB_PATH
+
+    - name: Add extra Python packages
+      if: env.IPA_HARDCODED_IMAGE_HASH == ''
+      run: |
+        robust_pip install -U wheel setuptools
+
+    - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+      env:
+        PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+      run: |
+        set -e
+        git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+        echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+    - name: Build project's wheel
+      if: env.IPA_HARDCODED_IMAGE_HASH == ''
+      run: |
+        python setup.py bdist_wheel
+
+    - name: Get image tag based on the current Git hash
+      id: get_image_tag
+      run: |
+        TAG=
+        if [[ $IPA_HARDCODED_IMAGE_HASH ]]; then
+            TAG=$IPA_HARDCODED_IMAGE_HASH
+        else
+            TAG=$(git rev-parse HEAD | cut -b1-10)
+        fi
+        echo "image_tag=${DEPLOYMENT_NAME}-${TAG}" >> $GITHUB_OUTPUT
+
+    - name: Check if Helm is already available
+      id: check_helm
+      run: |
+        set -e
+        if helm -h &> /dev/null; then
+            echo "installed=true" >> $GITHUB_OUTPUT
+        else
+            echo "installed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Install Helm if not available yet
+      if: steps.check_helm.outputs.installed != 'true'
+      uses: azure/setup-helm@v1
+
+    - name: Install Kubeconform for validating Kubernetes manifests
+      run: |
+        set -e
+        KC="$HOME/kubeconform/bin"
+        mkdir -p "$KC"
+        pushd "$KC"
+            curl -L https://github.com/yannh/kubeconform/releases/download/$KUBECONFORM_VERSION/kubeconform-linux-amd64.tar.gz | tar xvvzf -
+            chmod +x kubeconform
+        popd
+        echo "$KC" >> $GITHUB_PATH
+
+    # We generate the YAML and validate it before pushing - as this is a short operation (fail early)
+
+    - name: Checkout relevant Flux branch - ${{ env.FLUX_BRANCH }}
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.FLUX_BRANCH }}
+        path: flux
+        clean: false  # important: otherwise it will clean the main clone
+
+    - name: Generate YAML from all Helm charts
+      id: generate_templates_from_helm
+      env:
+        IMAGE_TAG: ${{ steps.get_image_tag.outputs.image_tag }}
+        GIT_PR_SHA: ${{ github.event.pull_request.head.sha }}
+        GIT_REF: ${{ github.ref_name }}
+      run: |
+        set -e
+        if [[ ${{ github.event_name }} == pull_request ]]; then
+            GIT_DEPLOY_REF="$GIT_PR_SHA"
+        else
+            GIT_DEPLOY_REF="$GIT_REF"
+        fi
+        KUBETAIL_FINAL_IMAGE=${IPA_IMAGE_PREFIX}"kubetail:"${KUBETAIL_VERSION}
+        echo "kubetail_final_image=${KUBETAIL_FINAL_IMAGE}" >> $GITHUB_OUTPUT
+        ALL_ERR=0
+        printf '' > flux/ipa-${DEPLOYMENT_NAME}.yaml  # make sure dest file is empty
+        for DIR in deployment/helm/*/; do
+          CONF_NAME=$(basename "$DIR")
+          echo "::group::Preparing Kubernetes configuration from Helm configuration ${CONF_NAME}"
+          ERR=0
+          helm template \
+              "${DEPLOYMENT_NAME}" \
+              ${DIR} \
+              -f deployment/helm/custom-values.yaml \
+              -n "${K8S_NAMESPACE}" \
+              --set "ipa.image_full=${IPA_IMAGE_PREFIX}${IPA_IMAGE/<TAG>/$IMAGE_TAG}" \
+              --set "ipa.kubetail_image_full=${KUBETAIL_FINAL_IMAGE}" \
+              --set "ipa.custom_endpoints_module=${IPA_CUSTOM_ENDPOINTS_MODULE}" \
+              --set "init.azure.subscription_id=${AZURE_SUBSCRIPTION_ID}" \
+              --set "init.azure.resource_group=${AZURE_RESOURCE_GROUP}" \
+              --set "init.azure.workspace=${AZURE_WORKSPACE}" \
+              --set "init.azure.external_hostname=${EXTERNAL_HOSTNAME}" \
+              --set "init.azure.storage_account=${AZURE_STORAGE_ACCOUNT}" \
+              --set "init.azure.container_name=${AZURE_CONTAINER_NAME}" \
+              --set "init.databricks.host=${DBR_HOST}" \
+              --set "git.deploy_ref=${GIT_DEPLOY_REF}" \
+              >> flux/ipa-${DEPLOYMENT_NAME}.yaml || ERR=1
+          printf '\n---\n' >> flux/ipa-${DEPLOYMENT_NAME}.yaml  # ensure we've got YAML separators (we never know)
+          echo '::endgroup::'
+          if [[ $ERR != 0 ]]; then
+            # Print error, but continue - we'll fail at the end but we'll gather all possible errors
+            echo "::error::Cannot prepare Kubernetes configuration from Helm configuration {CONF_NAME}"
+            ALL_ERR=1
+          fi
+        done
+        if [[ $ALL_ERR != 0 ]]; then
+          exit 1
+        fi
+
+    - name: Validate Kubernetes YAML chart with Kubeconform
+      run: |
+        set -e
+        kubeconform -strict -skip Gateway,VirtualService -summary flux/ipa-${DEPLOYMENT_NAME}.yaml
+
+    # End of YAML generation section
+
+    - name: Login to Azure Container Registry ${{ env.CLOUDCR }}
+      uses: azure/docker-login@v1  # v2 does not work
+      if: env.IPA_HARDCODED_IMAGE_HASH == ''
+      with:
+        login-server: ${{ env.CLOUDCR }}
+        username: ${{ secrets.AML_APP_SP_ID_PROD }}
+        password: ${{ secrets.AML_APP_SP_SECRET_PROD }}
+
+    # Image building using cache
+
+    - name: Compute cache image hash (based on requirements.txt)
+      id: get_cache_hash
+      run: |
+        set -e
+        HASH=$(cat requirements*.txt | sha256sum | awk '{print $1}')
+        if [[ $HASH == e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 || $HASH == '' ]]; then
+            echo "::error::Invalid hash (hashed empty string or hash itself is empty), this should not happen"
+            exit 1
+        fi
+        echo "Hash is: ${HASH}"
+        if [[ $IPA_HARDCODED_CACHE_HASH ]]; then
+            echo "::warning::Since IPA_HARDCODED_CACHE_HASH is defined, using hash ${IPA_HARDCODED_CACHE_HASH} instead"
+            echo "docker_cache_hash=${IPA_HARDCODED_CACHE_HASH}" >> $GITHUB_OUTPUT
+        else
+            echo "docker_cache_hash=${HASH}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Fetch cache image based on hash (if possible)
+      if: env.IPA_HARDCODED_IMAGE_HASH == ''
+      env:
+        CACHE_HASH: ${{ steps.get_cache_hash.outputs.docker_cache_hash }}
+      id: pull_cache_image
+      run: |
+        FULL_CACHE_IMAGE=${IPA_IMAGE_PREFIX}${IPA_CACHE_IMAGE/<HASH>/$CACHE_HASH}
+        echo "Attempting to pull cache image ${FULL_CACHE_IMAGE}"
+        docker pull "${FULL_CACHE_IMAGE}" || ERR=$?
+        if [[ $ERR ]]; then
+            echo "::warning::Cache image cannot be found"
+            echo "found=not-found" >> $GITHUB_OUTPUT
+        else
+            echo "found=found" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build and push cache image (if needed)
+      if: |
+        env.IPA_HARDCODED_IMAGE_HASH == '' && steps.pull_cache_image.outputs.found == 'not-found'
+      env:
+        DOCKER_BUILDKIT: "1"
+        CACHE_HASH: ${{ steps.get_cache_hash.outputs.docker_cache_hash }}
+        GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+      run: |
+        set -e
+        FULL_CACHE_IMAGE=${IPA_IMAGE_PREFIX}${IPA_CACHE_IMAGE/<HASH>/$CACHE_HASH}
+        echo "Building cache image ${FULL_CACHE_IMAGE}"
+        # Build with `--secret` requires Docker 20 - it reads it from an envvar called GITHUB_TOKEN
+        docker build \
+            -f deployment/Dockerfile_IPA_base \
+            -t "${FULL_CACHE_IMAGE}" \
+            --secret id=GITHUB_TOKEN \
+            --no-cache \
+            --pull \
+            --network=host \
+            .
+        # Push with retry
+        echo "Pushing cache image ${FULL_CACHE_IMAGE}"
+        for ((I=1; I<=10; I++)); do
+            ERR=0
+            docker push "${FULL_CACHE_IMAGE}" && break || ERR=1
+            echo "Attempt to push ${FULL_CACHE_IMAGE} $I/10 failed"
+            sleep 2
+        done
+        exit $ERR
+
+    - name: Build and push final IPA image
+      if: env.IPA_HARDCODED_IMAGE_HASH == ''
+      env:
+        DOCKER_BUILDKIT: "1"
+        CACHE_HASH: ${{ steps.get_cache_hash.outputs.docker_cache_hash }}
+        IMAGE_TAG: ${{ steps.get_image_tag.outputs.image_tag }}
+      run: |
+        set -e
+        FULL_CACHE_IMAGE=${IPA_IMAGE_PREFIX}${IPA_CACHE_IMAGE/<HASH>/$CACHE_HASH}
+        FULL_FINAL_IMAGE=${IPA_IMAGE_PREFIX}${IPA_IMAGE/<TAG>/$IMAGE_TAG}
+        echo "Building final IPA image ${FULL_FINAL_IMAGE} on top of cache image ${FULL_CACHE_IMAGE}"
+        docker build \
+            -f deployment/Dockerfile_IPA_app \
+            -t "${FULL_FINAL_IMAGE}" \
+            --no-cache \
+            --network=host \
+            --build-arg IPA_FULL_CACHE_IMAGE="${FULL_CACHE_IMAGE}" \
+            .
+        # Push with retry
+        echo "Pushing final IPA image ${FULL_FINAL_IMAGE}"
+        for ((I=1; I<=10; I++)); do
+            ERR=0
+            docker push "${FULL_FINAL_IMAGE}" && break || ERR=1
+            echo "Attempt to push ${FULL_FINAL_IMAGE} $I/10 failed"
+            sleep 2
+        done
+        exit $ERR
+
+    # End of Image building using cache
+
+    # Download Kubetail image from artifacts
+    - name: Download artifact
+      if: needs.kubetail_image.outputs.enable_kubetail == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: kubetail-ipa-image_artifact
+        path: /tmp
+
+    - name: Load Kubetail image
+      if: needs.kubetail_image.outputs.enable_kubetail == 'true'
+      run: |
+        docker load --input /tmp/kubetail-ipa-image.tar
+        docker image ls -a
+
+    - name: Push Kubetail image
+      if: needs.kubetail_image.outputs.enable_kubetail == 'true'
+      env:
+        KUBETAIL_FINAL_IMAGE: ${{ steps.generate_templates_from_helm.outputs.kubetail_final_image }}
+      run: |
+        set -e
+        # Push with retry
+        echo "Pushing Kubetail image ${KUBETAIL_FINAL_IMAGE}"
+        for ((I=1; I<=10; I++)); do
+            ERR=0
+            docker push "${KUBETAIL_FINAL_IMAGE}" && break || ERR=1
+            echo "Attempt to push "${KUBETAIL_FINAL_IMAGE}" $I/10 failed"
+            sleep 2
+        done
+        exit $ERR
+
+    - name: Add common Kubernetes YAML configuration valid for all Deployments
+      run: |
+        cat > flux/namespace_config.yaml <<EoF
+        # This configuration applies to the entirety of this namespace
+        ---
+        apiVersion: v1
+        kind: ServiceAccount
+        automountServiceAccountToken: false
+        metadata:
+          namespace: ${K8S_NAMESPACE}
+          name: ${K8S_NAMESPACE}-sa
+        ---
+        kind: ClusterRoleBinding
+        apiVersion: rbac.authorization.k8s.io/v1
+        metadata:
+          name: kubetail
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: kubetail
+        subjects:
+        - kind: ServiceAccount
+          name: ${K8S_NAMESPACE}-sa
+          namespace: ${K8S_NAMESPACE}
+        ---
+        EoF
+
+    - name: Add new YAML chart to the Flux-monitored branch - ${{ env.FLUX_BRANCH }}
+      working-directory: flux
+      run: |
+        set -e
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        for YAML in ipa-${DEPLOYMENT_NAME}.yaml namespace_config.yaml; do
+            bash ../deployment/git-add-rm-commit-push.sh add \
+                                                         "${YAML}" \
+                                                         "${FLUX_BRANCH}" \
+                                                         "$(git remote get-url origin)"
+        done
+
+    - name: Determine deployment URL based on the current environment
+      id: deployment_data
+      run: |
+        if [[ ${{ github.event_name }} == pull_request ]]; then
+            DEPLOYMENT_REF="${{ github.event.pull_request.head.sha }}"
+            DEPLOYMENT_PREFIX="https://${EXTERNAL_HOSTNAME}/pg-${{ github.event.repository.name }}-nonprod/dev-pr${{ github.event.number }}"
+            KUBETAIL_URL="https://${EXTERNAL_HOSTNAME}/pg-${{ github.event.repository.name }}-kubetail-nonprod/dev-pr${{ github.event.number }}/"  # final slash matters
+        else
+            if [[ '${{ github.event.release.prerelease }}' == true ]]; then
+              URL_SUFFIX='-nonprod'
+              ADDITIONAL_PATH='/stg'
+            else
+              URL_SUFFIX=''
+              ADDITIONAL_PATH=''
+            fi
+            DEPLOYMENT_REF="${{ github.ref_name }}"
+            DEPLOYMENT_PREFIX="https://${EXTERNAL_HOSTNAME}/pg-${{ github.event.repository.name }}${URL_SUFFIX}${ADDITIONAL_PATH}"
+            KUBETAIL_URL="https://${EXTERNAL_HOSTNAME}/pg-${{ github.event.repository.name }}-kubetail${URL_SUFFIX}${ADDITIONAL_PATH}/"  # final slash matters
+        fi
+        DEPLOYMENT_URL="${DEPLOYMENT_PREFIX}/livez"
+        echo "::set-output name=deployment_ref::${DEPLOYMENT_REF}"
+        echo "::set-output name=deployment_url::${DEPLOYMENT_URL}"
+        echo "::set-output name=deployment_prefix::${DEPLOYMENT_PREFIX}"
+        echo "::set-output name=kubetail_url::${KUBETAIL_URL}"
+
+    - name: Create status of AKS IPA deployment
+      uses: octokit/request-action@v2.x
+      id: create_deployment
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        route: POST /repos/{repo}/deployments
+        repo: ${{ github.repository }}
+        environment: "IPA AKS deployment"
+        ref: ${{ steps.deployment_data.outputs.deployment_ref }}
+        auto_merge: "false"
+        required_contexts: "[]"
+
+    - name: Determine GitHub Deployment ID to set status later
+      id: get_gh_deployment_id
+      env:
+        GITHUB_DEPLOYMENT_ID: ${{ fromJson(steps.create_deployment.outputs.data).id }}
+      run: |
+        echo "::set-output name=gh_deployment_id::${GITHUB_DEPLOYMENT_ID}"
+
+    - name: Set status of AKS IPA deployment
+      uses: octokit/request-action@v2.x
+      id: set_deployment_status
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        route: POST /repos/{repo}/deployments/{id}/statuses
+        repo: ${{ github.repository }}
+        state: "in_progress"
+        id: ${{ steps.get_gh_deployment_id.outputs.gh_deployment_id }}
+        environment_url: ${{ steps.deployment_data.outputs.deployment_url }}
+        auto_inactive: "false"
+
+    - name: Set the Kubetail comment (only on Pull Requests)
+      id: kubetail_comment_b64
+      if: |
+        needs.kubetail_image.outputs.enable_kubetail == 'true' && startsWith(github.event_name, 'pull_request')
+      run: |
+        KUBETAIL_COMMENT=$(cat <<\EOF
+        You can connect to the [Kubetail](https://github.com/kubetail-org/kubetail) instance connected to this Pull Request using the following URL:
+
+        📄 ${{ steps.deployment_data.outputs.kubetail_url }}
+
+        From the Kubetail dashboard, go to the Pods section and select the one whose name starts with:
+
+        ```
+        dev-pr ${{ github.event.pull_request.number }}-ipa-ipaapi-
+        ```
+
+        From the list of containers, select the `ipa-api-server` one (in most cases you do not need to select the `istio-proxy` one, which does not have the IPA logs).
+        EOF
+        )
+        # Note that on Macs `base64 -w 0` does not work, if you are trying to test it :)
+        echo "::set-output name=kubetail_comment_b64::$(echo "$KUBETAIL_COMMENT" | base64 -w 0)"
+
+    - name: Post comment with Kubetail URL (only on Pull Requests)
+      if: |
+        needs.kubetail_image.outputs.enable_kubetail == 'true' && startsWith(github.event_name, 'pull_request')
+      uses: ./cw
+      with:
+        check: post-comment
+        args: |
+          --token ${{ secrets.GITHUB_TOKEN }} --tag kubetail --body ${{ steps.kubetail_comment_b64.outputs.kubetail_comment_b64 }} --base64
+
+  ipa_endpoint_test:
+    # It must run on Azure as IPA is only accessible from PG Internal Network
+    runs-on: [pg_custom_runner_ubuntu22]
+    needs:
+    - ipa_build_deploy
+    strategy:
+      matrix:
+        python-version:
+        - '3.9'
+    steps:
+        # Check if the proper secret has been set - it should be an org token
+    - name: Check if secret PG_DNA_GITHUB_TOKEN is available
+      env:
+        PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+      run: |
+        if [[ ! $PG_DNA_GITHUB_TOKEN ]]; then
+            MSG="Secret `PG_DNA_GITHUB_TOKEN` was not found."
+            MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+            MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+            MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+            MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+            echo "::error::${MSG}"
+            exit 1
+        fi
+
+      # Use PG_DNA_GITHUB_TOKEN by default for all git operations
+    - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble
+      env:
+        PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+      run: |
+        set -e
+        git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+        if [[ ! $procter-gamble == "procter-gamble" ]]; then
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+        fi
+        echo "::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble"
+
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Wait for IPA deployment
+      id: wait_ipa_deployment
+      continue-on-error: true    # we still need to set the deployment status, and then we fail
+      run: |
+        timeout ${DEPLOYMENT_TIMEOUT_S} bash -c 'while [[ "$(curl -s ${{ needs.ipa_build_deploy.outputs.deployment_url }} -w ''%{http_code}'' -o resp.json)" != "200" || "$(cat resp.json | jq -r '.deploy_ref')" != ${{ needs.ipa_build_deploy.outputs.deployment_ref }} ]]; do sleep 5; done' || false
+
+    - name: Set status of AKS IPA deployment to success
+      uses: octokit/request-action@v2.x
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: |
+        steps.wait_ipa_deployment.outcome == 'success'
+      with:
+        route: POST /repos/{repo}/deployments/{id}/statuses
+        repo: ${{ github.repository }}
+        state: "success"
+        id: ${{ needs.ipa_build_deploy.outputs.gh_deployment_id }}
+        environment_url: ${{ needs.ipa_build_deploy.outputs.deployment_url }}
+        auto_inactive: "false"
+
+    - name: Set status of AKS IPA deployment to failed
+      uses: octokit/request-action@v2.x
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: |
+        steps.wait_ipa_deployment.outcome != 'success'
+      with:
+        route: POST /repos/{repo}/deployments/{id}/statuses
+        repo: ${{ github.repository }}
+        state: "error"
+        id: ${{ needs.ipa_build_deploy.outputs.gh_deployment_id }}
+        environment_url: ${{ needs.ipa_build_deploy.outputs.deployment_url }}
+        auto_inactive: "false"
+
+    - name: Fail in case IPA endpoint did not come up properly after timeout
+      if: |
+        steps.wait_ipa_deployment.outcome != 'success'
+      run: |
+        false
+
+    - name: Enable Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+      ## Install Python dependencies using caching below ##
+
+      # The actions/setup-python action automatically deprecates an old patch version of Python as
+      # soon as a new one is released. So, 3.7.6 gets deprecated as soon as 3.7.7 is out. We can
+      # only specify major.minor in the setup, but we need to know the full version for the cache
+    - name: Retrieve exact Python minor version
+      id: get-exact-py-ver
+      run: echo "python-version=$(python -V | grep -oE '([0-9]+\.){2}[0-9]+' | head -n1)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore venv from cache for Python ${{ steps.get-exact-py-ver.outputs.python-version }}
+      uses: actions/cache/restore@v3
+      id: cache-venv
+      with:
+        path: .venv
+        key: pg-cw-venv-${{ runner.os }}-py${{ steps.get-exact-py-ver.outputs.python-version }}-${{ hashFiles('requirements*.txt', 'pyproject.toml') }}
+
+    - name: Create venv
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: python -m venv .venv
+
+    - name: Add Robust pip - retry some times before failing
+      run: |
+        ROBUST_PIP_DIR=$(mktemp -d)
+        cat > $ROBUST_PIP_DIR/robust_pip <<\EOF
+        #!/bin/bash -e
+        for ((I=1; I<=3; I++)); do
+          ERR=0
+          echo "Invoking pip $* - attempt #${I}"
+          pip "$@" && break || ERR=$?
+        done
+        exit $ERR
+        EOF
+        chmod 0777 $ROBUST_PIP_DIR/robust_pip
+        echo $ROBUST_PIP_DIR >> $GITHUB_PATH
+
+      # Install Python dependencies only
+    - name: Install Python Dependencies
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        source .venv/bin/activate
+        robust_pip install -U pip
+        for REQ in requirements.txt requirements-devel.txt $PYROGAI_EXTRA_REQUIREMENTS; do
+            ERR=0
+            echo "::group::Installing $REQ using robust_pip"
+            robust_pip install -r "$REQ" || ERR=$?
+            echo "::endgroup::"
+            if [[ $ERR != 0 ]]; then
+                echo "::error::Failed pip installation of $REQ - exitcode was $ERR"
+                false  # abort installation
+            fi
+        done
+
+    - name: List all installed packages
+      run: |
+        set -e
+        source .venv/bin/activate
+        robust_pip freeze
+
+    - name: Save venv to Python dependencies to cache
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v3
+      id: cache-save
+      with:
+        path: .venv
+        key: ${{ steps.cache-venv.outputs.cache-primary-key }}
+
+      # Now install the Python package itself
+    - name: Install This Python Package
+      run: |
+        set -e
+        source .venv/bin/activate
+        robust_pip install --no-deps -e .
+
+      ## Install Python dependencies using caching above ##
+
+    - name: Run tests
+      env:
+        IPA_URL_PREFIX: ${{ needs.ipa_build_deploy.outputs.deployment_prefix }}
+      run: |
+        set -e
+        source .venv/bin/activate
+        echo "::notice::IPA has been deployed: you can run tests against your IPA instance from this PR by referring to the IPA_URL_PREFIX variable available in your tests - currently set to ${IPA_URL_PREFIX}"
+        python test/run_pytest_cov.py --markers ipa
+
+

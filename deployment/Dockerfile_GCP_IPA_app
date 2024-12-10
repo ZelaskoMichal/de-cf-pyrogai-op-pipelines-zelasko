@@ -1,0 +1,31 @@
+ARG IPA_FULL_CACHE_IMAGE=
+FROM ${IPA_FULL_CACHE_IMAGE}
+
+ARG GH_HOST=
+ARG GH_SLUG=
+ARG GH_PROJECT=
+ENV VENVDIR=/virtualenvs/ipa
+
+# Add produced wheel to the container for installation
+ADD dist/*.wh[l] /build/
+ADD ipa.json /ipa.json
+
+# Install package without dependencies (already installed in previous layer)
+RUN set -x \
+    && . ${VENVDIR}/bin/activate \
+    && pip install --no-deps /build/*.whl \
+    # link src path
+    && site_packages=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") \
+    && mkdir -p src/ \
+    && ln -s "$site_packages"/* src/ \
+    # Being in a git repo is currently required to run a step
+    && git init -b ipa_gcp_branch --quiet \
+    && git config user.name 'Cloud Run' \
+    && git config user.email '<>' \
+    && git commit --allow-empty -m "init" \
+    && git remote add "origin" https://${GH_HOST}/${GH_SLUG}/${GH_PROJECT}.git
+
+# Prepare the entrypoint
+ENV PATH="$VENVDIR/bin:$PATH"
+ENTRYPOINT ["ipa"]
+CMD ["run", "--host", "0.0.0.0", "--port", "80", "ipa.json"]

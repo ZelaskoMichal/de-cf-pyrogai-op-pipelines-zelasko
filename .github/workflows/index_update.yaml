@@ -1,0 +1,23 @@
+name: Update index.json
+run-name: ${{ github.actor }} is running Development Deployment
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout repo content
+        uses: actions/checkout@v2
+
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+          
+      - name: execute verification and update script # run file
+        run: |
+          python ./scripts/verify_update_index.py

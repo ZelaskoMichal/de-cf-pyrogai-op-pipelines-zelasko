@@ -1,0 +1,94 @@
+name: aiapps_aml
+description: Showcase ML pipeline with base steps. Customized to serve as a template for integration with the Config-YAML app and designed for execution on Azure ML.
+experiment: template
+runtime: runtime_aiapps_aml
+compute: small
+scope: aiapps-aml
+
+platforms:
+  - AML
+  - Local
+
+providers:
+  - AML Provider
+  - Local Provider
+
+params:
+  regularization_strength: 0.1
+  random_state: 69
+  run_file_1: None
+  config_file_1: None
+
+input_output_slots:
+
+  - name: config_file_1_output
+    type: mlflow_artifact
+    artifact_path: uploads
+
+  - name: run_file_1_output
+    type: mlflow_artifact
+    artifact_path: uploads
+
+  - name: config_file_1_input
+    type: cloudfile
+    url: cloud://{runtime_parameters.config_file_1}
+
+  - name: run_file_1_input
+    type: cloudfile
+    url: cloud://{runtime_parameters.run_file_1}
+
+  - name: confusion_matrix
+    type: mlflow_artifact
+    artifact_path: insights
+
+  - name: validation_predictions_csv
+    type: mlflow_artifact
+    artifact_path: insights
+  
+  - name: validation_predictions_json
+    type: mlflow_artifact
+    artifact_path: insights
+
+  - name: results_options_json
+    type: mlflow_artifact
+    artifact_path: insights
+
+  - name: precision_recall_curve
+    type: mlflow_artifact
+    artifact_path: insights
+
+  - name: roc_curve
+    type: mlflow_artifact
+    artifact_path: insights
+
+
+steps:
+-   class: template_pipelines.steps.aiapps_base.generate_data:GenerateDataStep
+    name: generate_data
+    inputs:
+    - config_file_1_input
+    - run_file_1_input
+-   class: template_pipelines.steps.aiapps_base.preprocess_data:PreprocessDataStep
+    name: preprocess_data
+    run_after:
+    - generate_data
+-   class: template_pipelines.steps.aiapps_base.train_model:TrainModelStep
+    name: train_model
+    run_after:
+    - preprocess_data
+-   class: template_pipelines.steps.aiapps_aml.score_data:ScoreDataStep
+    name: score_data
+    inputs:
+    - config_file_1_input
+    - run_file_1_input
+    outputs:
+    - config_file_1_output
+    - run_file_1_output
+    - confusion_matrix
+    - validation_predictions_csv
+    - validation_predictions_json
+    - results_options_json
+    - precision_recall_curve
+    - roc_curve
+    run_after:
+    - train_model

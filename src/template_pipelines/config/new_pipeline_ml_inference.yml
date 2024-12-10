@@ -1,0 +1,75 @@
+compute: small
+description: This pipeline demonstrates how to read model from registry and run inference
+experiment: exp_ml
+input_output_slots:
+- name: campaigns.parquet
+  type: cloudfile
+  url: cloud://{config.ml_inference.data_dir}/campaigns.parquet
+- name: coupon_item_mapping.parquet
+  type: cloudfile
+  url: cloud://{config.ml_inference.data_dir}/coupon_item_mapping.parquet
+- name: coupon_redemption.parquet
+  type: cloudfile
+  url: cloud://{config.ml_inference.data_dir}/coupon_redemption.parquet
+- name: customer_demographics.parquet
+  type: cloudfile
+  url: cloud://{config.ml_inference.data_dir}/customer_demographics.parquet
+- name: customer_transactions.parquet
+  type: cloudfile
+  url: cloud://{config.ml_inference.data_dir}/customer_transactions_inference.parquet
+- name: items.parquet
+  type: cloudfile
+  url: cloud://{config.ml_inference.data_dir}/items.parquet
+- name: impute_scaling_preprocessor
+  type: cloudfile
+  url: cloud://{config.ml_inference.model_dir}/impute_scaling_preprocessor.pkl
+- name: anomaly_model
+  type: cloudfile
+  url: cloud://{config.ml_inference.model_dir}/anomaly_model.pth
+- kfp_type: Plot
+  name: kfp_md_plot
+  type: kfp_artifact
+- kfp_type: HTML
+  name: kfp_ge_doc
+  type: kfp_artifact
+- artifact_path: great_expecation_docs
+  name: mlflow_ge_doc
+  type: mlflow_artifact
+name: ml_inference
+platforms:
+- Vertex
+- DBR
+- AML
+- Local
+runtime: runtime_ml_inference
+scope: ml-inference
+steps:
+- class: template_pipelines.steps.ml_training.data_preprocessing:Preprocessing
+  inputs:
+  - campaigns.parquet
+  - coupon_item_mapping.parquet
+  - coupon_redemption.parquet
+  - customer_demographics.parquet
+  - customer_transactions.parquet
+  - items.parquet
+  name: preprocessing
+- class: template_pipelines.steps.ml_training.feature_creation:FeatureCreation
+  name: feature_creation
+  outputs:
+  - kfp_md_plot
+  run_after:
+  - preprocessing
+- class: template_pipelines.steps.ml_training.dv_after_feature_creation:DataValidationAfterFeatureCreationDqStep
+  name: data_validation_after_feature_creation
+  outputs:
+  - kfp_ge_doc
+  - mlflow_ge_doc
+  run_after:
+  - feature_creation
+- class: template_pipelines.steps.ml_inference.model_inference:ModelInference
+  inputs:
+  - impute_scaling_preprocessor
+  - anomaly_model
+  name: model_inference
+  run_after:
+  - data_validation_after_feature_creation

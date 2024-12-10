@@ -1,0 +1,20 @@
+<p>Hello, this is PyrogAI.</p>
+
+<p>Execution of the following pipeline was {% if success %}<font color="green">successful</font>{% else %}<font color="red">unsuccessful</font>{% endif %}:</p>
+<ul>
+    <li><b>Scope:</b> <tt>{{ step.scope }}</tt></li>
+    <li><b>Runtime parameters:</b> <tt> 
+    {%- for name, value in step.runtime_parameters.items() %}
+    <br>{{ name }}={{ value }}
+    {%- endfor -%}
+    </tt></li>  
+</ul>
+
+<h2>Pipeline information</h2>
+<ul>
+    <li><b>Pipeline name:</b> <tt>{{ step.pipeline.name }}</tt></li>
+    <li><b>Platform:</b> <tt>{{ step.platform.value }}</tt></li>
+    <li><b>Environment:</b> {{ step.environment.value }}</li>
+    <li><b>Run ID:</b> <tt>{{ step.run_id }}</tt></li>
+    <li><b>Run timestamp (UTC):</b> {{ utc_full_dashes }}</li>
+</ul>

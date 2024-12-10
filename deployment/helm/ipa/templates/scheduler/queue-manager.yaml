@@ -1,0 +1,85 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+{{ range .Values.ipazero.queues }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-{{ $.Chart.Name }}-queue-manager-{{ .name }}
+  labels:
+    app: {{ $.Chart.Name }}
+    component: "queue-manager"
+    release: {{ $.Release.Name }}
+    heritage: {{ $.Release.Service }}
+spec:
+  strategy:
+    type: "Recreate"
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}-queue-manager-{{ .name }}
+      component: "queue-manager-{{ .name }}"
+      release: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}-queue-manager-{{ .name }}
+        component: "queue-manager-{{ .name }}"
+        release: {{ $.Release.Name }}
+    spec:
+      serviceAccountName: {{ $.Release.Name }}-{{ $.Chart.Name }}-sa
+      imagePullSecrets:
+          - name: regcred
+      containers:
+      - name: queue-manager
+        args:
+        - |
+            {{ $.Values.istio.wait_for_istio }}
+            {{ $.Values.ipazero.venv_activate_cmd }}
+            {{ $.Values.ipazero.queue_manager_pre_cmd }}
+            ipazero-queue-manager
+            EXITCODE=$?
+            {{ $.Values.istio.quit_istio }}
+            exit $EXITCODE
+        command:
+        - /bin/bash
+        - -c
+        image: "{{ $.Values.ipa.image_full }}"
+        envFrom:
+        - configMapRef:
+            name: {{ $.Release.Name }}-{{ $.Chart.Name }}-envvars
+        env:
+        - name: IPAZERO_QUEUE
+          value: "{{ .name }}"
+        - name: IPAZERO_JOB_TEMPLATE_PATH
+          value: "{{ $.Values.ipazero.config_dir_templates }}/consumer-job-template-{{ .name }}.yaml.j2"
+        - name: IPAZERO_LABEL_SELECTOR
+          value: "release = {{ $.Release.Name }}, ipazero-queue = {{ .name }}"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 999
+        resources:
+          requests:
+            memory: "250Mi"
+            cpu: "250m"
+        volumeMounts:
+          - name: k8s-jinja-templates
+            mountPath: /etc/k8s_jinja_templates
+          - name: istio-scripts
+            mountPath: /etc/istio_scripts
+          - mountPath: /tmp
+            name: tmp-folder
+      volumes:
+        - name: k8s-jinja-templates
+          configMap:
+            name: {{ $.Release.Name }}-{{ $.Chart.Name }}-k8s-jinja-templates
+            defaultMode: 0755
+        - name: istio-scripts
+          configMap:
+            name: {{ $.Release.Name }}-{{ $.Chart.Name }}-istio-scripts
+            defaultMode: 0755
+        - name: tmp-folder
+          emptyDir: {}
+{{ end }}{{- /* End of range over queues for queue manager instances */ -}}
+{{ end }}

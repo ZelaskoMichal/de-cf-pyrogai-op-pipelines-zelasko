@@ -1,0 +1,128 @@
+# This is the supplemental manifest file for AI application repositories. 
+# Please update it fully, when your model is ready to step up in its lifecycle stage
+# The entries in this manifest inform automated processes including:
+# - model registration for compliance tracking
+# - model review triggers
+# - audit and administrative purposes
+# if some of selection does not include your case, you have any question to the process, please raise a ticket via link below
+# or reach out MRO team via email mro.im@pg.com
+# https://pgglobalenterprise.service-now.com/itsm?id=sc_cat_item&table=sc_cat_item&sys_id=3061220047a461d04ac6f3f8536d43dc
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# manifest version: informs the parser on the manifest file version.
+# required
+# don't change.
+manifest_version: 2
+# does this repository contain an AI component or not
+# required
+# true or false
+ai_component: true
+# extension yamls will need to define a dependent direction on apps.
+# eg for a library, the library doesn't know what uses it, but it knows what it is dependent on
+# for a model, we have a requirement that the model knows where it is used, so it is the opposite direction of the library example
+# model(s) in this repository
+# required if AI component entry is True
+models:
+  # model entry
+  # required
+  # any of the model subfields can be defined at the top level, and if so it will be the answer for anything that doesn't list it
+  - model:
+      # required
+      # string representation of the model name
+      name: template pipelines
+      # optional
+      # string representation of the project name, which uses this model
+      product_name: template pipelines
+      # required
+      # string representation of organisation, which build a model
+      # use one value from a list: Baby - BU IT, Fem. and Family - BU IT, Beauty - BU IT, Grooming - BU IT, F&HC - BU IT, Baby - BU R&D, 
+      # Fem. and Family - BU R&D, Beauty - BU R&D, Grooming - BU R&D, F&HC - BU R&D, Europe - MO, NA - MO, LA - MO, GC - MO, APAC - MO,
+      # IMEA - MO, GTO - CF IT, D&A - CF IT, DE - CF IT, BRD - CF IT, R&D - CF, CF - PS, Engineering - PS, Manufacturing - PS, FPS&S - GBS, GCR - GBS,
+      # MOSS&S - GBS, People Services - GBS, GBUS&S - GBS, Other - Other, Test - Test
+      organization: de-cf
+      # optional
+      # string representation of domain, in which model is being used
+      # DS domain examples: retail, media, PS, GenAI, NonDS, foundational
+      domain:
+      # optional 
+      # string representation of pillar, in which model is being used (a domain subgroup)
+      # DS pillar examples: promo/price, category growth management, superior retail execution, planning & tv, retail media, dcom & search, digital media,
+      # transportation/warehousing, demand/supply, e2e cost insights, capacity, supply network design, sustainability, manufacturing, master data, 
+      # customer collaboration, GenAI, NonDS, experimentation 
+      pillar: 
+      # required
+      # uncomment as needed, keep format of list
+      region_tags: 
+        # - EU
+        # - LA
+        # - EU
+        # - AMA
+        # - CN
+      # automatically populated by AI provisioner
+      modelop_id: {{cookiecutter._model_id}}
+      # required
+      # provide an "executive summary"; high level description of model purpose
+      bod_description: 
+      # required
+      # explain the logic of an algorythm, what data it uses, what is its output, who is main user, how system will communicate with end user
+      description: Testing IPA CF integration
+      # optional
+      # please reach out mro.im@pg.com for the latest "metro diagram"
+      metro_map:
+      # mandatory
+      # link to model documentation
+      documentation_link: https://jira-pg-ds.atlassian.net/wiki/spaces/AFMD
+      # optional
+      # pupulate data sources of the data used in model, keep format of list
+      data_sources:
+      # - data source 1
+      # - data source 2
+      # - etc. 
+      # optional - if project in Jira do not exist yet. update when link available. 
+      jira_link: https://jira-pg-ds.atlassian.net/browse/
+      # required
+      people:
+        # required
+        model_owner: berzano.dc
+        # optional, short name
+        operations_owner: 
+        # optional, short name
+        business_owner: 
+      # required. 
+      # use strictly one value from a list: experiment, poc, scale_to_production, ongoing_operations, archived, paused
+      lifecycle_stage:
+      # required
+      # populate a date of expected lifecycle_stage advancement from current one; use format "YYYY-MM-DD"
+      next_stage_at: 
+      # required
+      # enumerate: bayesian_network, generative_pretrained_transformer, heuristics, ml_other, neural_network, operations_research, other_non_ml,
+      # random_forest, regression, inforcement_learning, simulation, stable_diffusion, time_series, hybrid
+      model_type: 
+      # required. Enumerate: jtbd_1, jtbd_2, jtbd_3. 
+      # Reference: https://jira-pg-ds.atlassian.net/wiki/spaces/HWR/pages/4035280897/Dev+Prod+separation+model+for+Data+Science+Algorithmic+Applications
+      model_class: 
+      # required
+      model_bia:
+        # required
+        # provide model BIA materiality matrix link
+        bia_link: https://aifactory.pg.com/documentation/onboarding/model-risk/risk-assessment-process/
+        # required
+        # bool
+        reputational_risk: 
+        # required
+        # enumerate <500M, 500M-5MM, 5MM-50MM, >50MM
+        financial_risk: 
+        # required
+        # enumerate: low, medium, high
+        bia_score: low
+      # required from poc stage onwards
+      # provide a link to an artifact storage for the project 
+      artifact_storage: 
+      # required from poc stage onwards
+      # provide a link to an observability service for the project
+      observability: 
+      # optional
+      # either the snow CI, hex id, or a link to an app.yml, keep format of list
+      used_in_apps:
+        # - app_one
+        # - app_two
+        # - and_so_on

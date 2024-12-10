@@ -1,0 +1,31 @@
+name: video_analysis
+description: Demonstrates a general Generative AI pipeline for processing and analyzing videos by leveraging the Gemini model. Beta version 
+experiment: exp_ml
+compute: small
+runtime: runtime_video_analysis
+scope: video-analysis
+platforms:
+    - Local
+    - AML
+input_output_slots:
+-   name: video_data.csv
+    type: cloudfile
+    url: cloud://{config.video_analysis.data_dir}/video_data.csv
+-   name: video_results.csv
+    type: cloudfile
+    url: cloud://{config.video_analysis.data_dir}/video_results.csv
+
+steps:
+-   name: video_processing
+    class: template_pipelines.steps.video_analysis.video_processing:VideoProcessing
+    inputs:
+      - video_data.csv
+
+-   name: result_aggregation
+    class: template_pipelines.steps.video_analysis.result_aggregation:ResultAggregation
+    inputs:
+      - video_data.csv
+    outputs:
+      - video_results.csv
+    run_after:
+      - video_processing

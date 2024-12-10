@@ -1,0 +1,7 @@
+{
+    "server": "smtp.office365.com",
+    "port": 587,
+    "recipients": ["rudawski.m.1@pg.com", "maciag.am@pg.com", "kurek.ak@pg.com", "madson.k@pg.com", "rahimi.a@pg.com"],
+    "subject": "PyrogAI auto-update problem",
+    "body": "** DO NOT REPLY TO THIS EMAIL **\n\nThis is an automated message. Replies to this email address are not monitored.\n\nPlease review this pr: {}.\nThe PyrogAI auto-update issue led to the failure of at least one of the following workflows:\n\n{}"
+}

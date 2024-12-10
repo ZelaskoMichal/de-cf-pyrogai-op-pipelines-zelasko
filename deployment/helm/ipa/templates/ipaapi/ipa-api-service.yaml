@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ $.Chart.Name }}
+    component: ipa-api
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  {{- if .Values.ipa.service_name }}
+  name: {{ .Values.ipa.service_name }}
+  {{- else }}
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-ipaapi
+  {{- end }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+  - port: 8182  # external
+    protocol: TCP
+    targetPort: 5168  # internal
+  selector:
+    app: {{ $.Chart.Name }}
+    component: ipa-api
+    release: {{ .Release.Name }}

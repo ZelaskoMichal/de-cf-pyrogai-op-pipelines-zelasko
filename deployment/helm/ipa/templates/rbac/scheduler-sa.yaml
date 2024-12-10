@@ -1,0 +1,8 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+{{- if .Values.ipazero.create_rbac }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-sa
+{{- end }}
+{{- end }}

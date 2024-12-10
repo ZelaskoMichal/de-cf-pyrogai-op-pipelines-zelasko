@@ -1,0 +1,164 @@
+{{ if or (.Values.init.gcloud) (.Values.init.azure) (.Values.init.databricks)}}
+{{ else }}
+  {{ required ".Values.init.gcloud or .Values.init.azure or .Values.init.databricks is required." .Values.empty }}
+{{ end -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-init-scripts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  get-config.py: |
+    import json
+    from pathlib import Path
+
+    params_dict = {"backends": {}}
+
+{{ if (.Values.init.gcloud) }}
+    from google.cloud import secretmanager
+
+    client = secretmanager.SecretManagerServiceClient()
+    response = client.access_secret_version(name=f'projects/{{ .Values.init.gcloud.project_id }}/secrets/{{ .Values.init.gcloud.kfp_connect_secret }}/versions/latest')
+    payload = response.payload.data.decode('UTF-8')
+    payload = payload.split(",")
+
+    response_json = client.access_secret_version(name=f'projects/{{ .Values.init.gcloud.project_id }}/secrets/{{ .Values.init.gcloud.kfp_connect_json_secret }}/versions/latest')
+    payload_json = response_json.payload.data.decode('UTF-8')
+    payload_json = json.loads(payload_json)
+    client_id = list(payload_json.keys())[0]
+    ssl_ca_cert = payload[1]
+
+    params_dict["backends"]["kubeflow"] = {
+        "kfp-us": {
+            "host": f"{payload[0]}",
+            "ssl_ca_cert_path": f"{ssl_ca_cert}",
+            "client_id": f"{client_id}",
+            "other_client_id": f"{payload_json[client_id]['other_client_id']}",
+            "other_client_secret": f"{payload_json[client_id]['other_client_secret']}",
+            "refresh_token": f"{payload_json[client_id]['refresh_token']}",
+            "namespace": "sa-ltvo-us",
+            "service_account": "ksa-ltvo-us"
+        },
+        "kfp-ca": {
+            "host": f"{payload[0]}",
+            "ssl_ca_cert_path": f"{ssl_ca_cert}",
+            "client_id": f"{client_id}",
+            "other_client_id": f"{payload_json[client_id]['other_client_id']}",
+            "other_client_secret": f"{payload_json[client_id]['other_client_secret']}",
+            "refresh_token": f"{payload_json[client_id]['refresh_token']}",
+            "namespace": "sa-ltvo-ca",
+            "service_account": "ksa-ltvo-ca"
+        }
+    }
+    {{ end }}
+{{ if or (.Values.init.azure) (.Values.init.databricks) }}
+    params_dict["auth"] = {
+        "auth_type": "jwt",
+        "api_secret_key": Path("/var/run/secrets/ipa-shared-secret/secret").read_text(),
+    }
+{{ end }}
+{{ if (.Values.init.azure) }}
+    params_dict["backends"]["azureml2"] = {
+        "aml": {
+            "tenant_id": "3596192b-fdf5-4e2c-a6fa-acb706c963d8",
+            "subscription_id": "{{ .Values.init.azure.subscription_id }}",
+            "resource_group": "{{ .Values.init.azure.resource_group }}",
+            "workspace": "{{ .Values.init.azure.workspace }}",
+            {{- if (.Values.ipa.include_published_pipelines) }}
+            "include_published_pipelines": [
+                {{- range $item := .Values.ipa.include_published_pipelines }}
+                "{{ $item }}",
+                {{- end }}
+            ],
+            {{- end }}
+        }
+    }
+{{ end }}
+{{ if and (.Values.init.azure) (.Values.init.databricks) }}
+    params_dict["backends"]["databricks"] = {
+        "dbr": {
+            "tenant_id": "3596192b-fdf5-4e2c-a6fa-acb706c963d8",
+            "host": "{{ .Values.init.databricks.host }}",
+            "consider_pipelines_with_no_version_tag": "false",
+            "aml": {
+                "subscription_id": "{{ .Values.init.azure.subscription_id }}",
+                "resource_group": "{{ .Values.init.azure.resource_group }}",
+                "workspace_name": "{{ .Values.init.azure.workspace }}",
+                "tenant_id": "3596192b-fdf5-4e2c-a6fa-acb706c963d8",
+            },
+
+            {{- if (.Values.ipa.include_published_pipelines) }}
+            "include_published_pipelines": [
+                {{- range $item := .Values.ipa.include_published_pipelines }}
+                "{{ $item }}",
+                {{- end }}
+            ],
+            {{- end }}
+        }
+    }
+{{ end }}
+
+{{ if or (.Values.init.azure) (.Values.init.databricks) }}
+    {{ if (.Values.ipa.custom_endpoints_module) }}
+    params_dict["backends"]["local"] = {
+        "k8s": {
+            "config_module": "{{ (split "." .Values.ipa.custom_endpoints_module)._0 }}.config",
+            "include_published_pipelines": None,
+            "extra_pipeline_run_params": [
+                    "--environment",
+                    "dev",
+                    "--runtime-provider",
+                    "AML Provider",
+            ],
+        }
+    }
+    {{ end }}
+{{ end }}
+
+{{ if (.Values.ipa.custom_endpoints_module) }}
+    params_dict["custom_endpoints_module"] = "{{ .Values.ipa.custom_endpoints_module }}"
+{{ end }}
+
+{{ if (.Values.ipa.fastapi_factory_callable) }}
+    params_dict["fastapi_factory_callable"] = "{{ .Values.ipa.fastapi_factory_callable }}"
+{{ end }}
+    
+    json.dump(params_dict, open("/vars/init_vars/config.json", "w"))
+
+{{ if (.Values.init.gcloud) }}
+  get-kfp-cert.py: |
+    import json
+    import os
+    import time
+    {{ if (.Values.init.gcloud) }}
+    from google.cloud import secretmanager
+
+    for i in range(5):
+      try:
+        time.sleep(2)
+        print('Connecting to kfp')
+        client = secretmanager.SecretManagerServiceClient()
+        break
+      except Exception:
+          continue
+
+    ssl_cert_response = client.access_secret_version(name=f'projects/{{ .Values.init.gcloud.project_id }}/secrets/{{ .Values.init.gcloud.kfp_ca_cert_secret }}/versions/latest')
+    ssl_cert_payload = ssl_cert_response.payload.data.decode('UTF-8')
+    ssl_ca_cert = json.load(open("/vars/init_vars/config.json", "r"))['backends']['kubeflow']['kfp-us']['ssl_ca_cert_path']
+    if os.path.isfile(ssl_ca_cert):
+        with open(ssl_ca_cert, 'r') as fr:
+            cont = fr.read()
+    else:
+        cont = ''
+    payload_formatted = ssl_cert_payload.strip().replace('\r\n', '').replace('\n', '')
+    {{ end }}
+    if not (payload_formatted in cont.strip().replace('\n', '')):
+        os.makedirs(os.path.dirname(ssl_ca_cert), exist_ok=True)
+        with open(ssl_ca_cert, 'a') as f:
+            f.write(ssl_cert_payload)
+{{ end }}

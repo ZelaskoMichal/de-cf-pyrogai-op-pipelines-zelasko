@@ -1,0 +1,141 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ $.Chart.Name }}
+    component: ipa-api
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  name: {{ $.Release.Name }}-{{ $.Chart.Name }}-ipaapi
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $.Chart.Name }}
+      component: ipa-api
+      release: {{ .Release.Name }}
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: {{ $.Chart.Name }}
+        component: ipa-api
+        release: {{ .Release.Name }}
+        {{ if (.Values.init.azure) }}
+        azure.workload.identity/use: "true"
+        {{ end }}
+    spec:
+      {{ if (.Values.ipa.service_account) }}
+      serviceAccountName: {{ .Values.ipa.service_account }}
+      {{ if (.Values.init.gcloud) }}
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      {{ end }}
+      {{ end }}
+      {{ if (.Values.init.azure) }}
+      imagePullSecrets:
+      - name: regcred
+      {{ end }}
+      containers:
+
+      # IPA API. This will stay here
+      - name: ipa-api-server
+        image: "{{ .Values.ipa.image_full }}"
+        env:
+        - name: IPA_DEPLOYMENT_NAME
+          value: {{ .Release.Name }}
+        - name: GIT_DEPLOY_REF
+          value: {{ .Values.git.deploy_ref }}
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-envvars
+        imagePullPolicy: {{ .Values.ipa.image_pull_policy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 999
+        command:
+        - '/bin/bash'
+        - '-c'
+        args:
+        - |
+            {{ .Values.istio.wait_for_istio }}
+            {{ .Values.ipa.venv_activate_cmd }}
+            python /etc/init_scripts/get-config.py
+            ipa run /vars/init_vars/config.json \
+              --host 0.0.0.0 \
+              --port 5168
+              {{- $debug := .Values.ipa.debug | default (dict) }}
+              {{- if or
+                    (and (hasPrefix "dev" .Release.Name) ($debug.dev | default true))
+                    (and (eq "stg" .Release.Name) ($debug.stg | default false))
+                    (and (eq "prod" .Release.Name) ($debug.prod | default false))
+                  }} \
+                --debug \
+                --root-prefix "https://{{ .Values.init.azure.external_hostname }}/{{ if eq .Release.Name "prod" }}{{ .Release.Namespace }}{{ else }}{{ .Release.Namespace }}-nonprod/{{ .Release.Name }}{{ end }}"
+              {{- end }}
+            EXITCODE=$?
+            {{ .Values.istio.quit_istio }}
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: 5168
+          initialDelaySeconds: 120
+          periodSeconds: 60
+          failureThreshold: 3
+        volumeMounts:
+        - name: istio-scripts
+          mountPath: /etc/istio_scripts
+        - name: init-vars
+          mountPath: /vars/init_vars
+        - name: init-scripts
+          mountPath: /etc/init_scripts
+        - name: ipa-secret-vol
+          mountPath: /var/run/secrets/ipa-shared-secret
+        - name: tmp-folder
+          mountPath: /tmp
+        # Pay attention: Master API resources
+        resources:
+          {{- if hasPrefix "dev" .Release.Name }}
+          requests:
+            memory: {{ (.Values.ipa.resources).dev.requests.memory | default "384Mi" }}
+            cpu: {{ (.Values.ipa.resources).dev.requests.cpu | default "100m" }}
+          limits:
+            memory: {{ (.Values.ipa.resources).dev.limits.memory | default "1Gi" }}
+            cpu: {{ (.Values.ipa.resources).dev.limits.cpu | default "1" }}
+          {{- else if eq "stg" .Release.Name }}
+          requests:
+            memory: {{ (.Values.ipa.resources).stg.requests.memory | default "384Mi" }}
+            cpu: {{ (.Values.ipa.resources).stg.requests.cpu | default "100m" }}
+          limits:
+            memory: {{ (.Values.ipa.resources).stg.limits.memory | default "1Gi" }}
+            cpu: {{ (.Values.ipa.resources).stg.limits.cpu | default "1" }}
+          {{- else if eq "prod" .Release.Name }}
+          requests:
+            memory: {{ (.Values.ipa.resources).prod.requests.memory | default "384Mi" }}
+            cpu: {{ (.Values.ipa.resources).prod.requests.cpu | default "100m" }}
+          limits:
+            memory: {{ (.Values.ipa.resources).prod.limits.memory | default "1Gi" }}
+            cpu: {{ (.Values.ipa.resources).prod.limits.cpu | default "1" }}
+          {{- end }}
+      volumes:
+        - name: istio-scripts
+          configMap:
+            name: {{ $.Release.Name }}-{{ $.Chart.Name }}-istio-scripts
+            defaultMode: 0755
+        - name: init-scripts
+          configMap:
+            name: {{ $.Release.Name }}-{{ $.Chart.Name }}-init-scripts
+            defaultMode: 0755
+        - name: ipa-secret-vol
+          secret:
+            secretName: ipa-shared-secret
+        - name: init-vars
+          emptyDir: {}
+        - name: tmp-folder
+          emptyDir: {}

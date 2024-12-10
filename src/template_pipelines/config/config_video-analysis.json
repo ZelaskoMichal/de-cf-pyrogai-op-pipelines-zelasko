@@ -1,0 +1,14 @@
+{
+    "video_analysis": {
+        "data_dir": "video_data",
+        "genai_url": "https://genai-platform-dev.pg.com/stg/v1/vertexai/v1/projects/some/locations/some_location/publishers/google",
+        "model_endpoint": "/v1beta/models/gemini-pro-vision:generateContent",
+        "cognitive_services": "https://cognitiveservices.azure.com/.default",
+        "headers": {
+            "userid": "aif_tpt@pg.com",
+            "accept": "application/json",
+            "project-name": "AIFactory TPT"
+        },
+        "thread_num": 15
+    }
+}

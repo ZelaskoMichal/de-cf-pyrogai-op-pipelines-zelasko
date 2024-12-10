@@ -1,0 +1,33 @@
+ipa:
+  # Where to mount (inside the containers) the k8s job templates
+  config_dir_templates: "/etc/k8s_jinja_templates"
+  # Set to false if for some reason you don't want to create RBAC rules (unlikely)
+  create_rbac: true
+  # Virtual environment command
+  venv_activate_cmd: "source /virtualenvs/ipa/bin/activate"
+  # Image pull policy [Always, IfNotPresent]
+  image_pull_policy: "IfNotPresent"
+  # Service account
+  service_account: "workload-sa"
+  # Pipelines to include - leave as null to include everything, otherwise it's a list of strings
+  include_published_pipelines: null
+  # Name of module holding custom endpoints code - if null/not specified, no custom endpoints
+  custom_endpoints_module: null
+
+istio:
+  # String executing the command that waits for Istio to be up
+  wait_for_istio: "/etc/istio_scripts/wait-for-istio.sh"
+  # String executing the command to execute to quit Istio
+  quit_istio: "/etc/istio_scripts/quit-istio.sh"
+
+init:
+
+  # Override this from the cmdline
+  gcloud: {}
+  # Override this from the cmdline - --set init.azure....
+  azure: {}
+  # Override this from the cmdline
+  databricks: {}
+
+envvars:
+  # add custom environment variables

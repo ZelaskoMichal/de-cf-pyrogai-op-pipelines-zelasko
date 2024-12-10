@@ -1,0 +1,4 @@
+{
+    "image": "ghcr.io/procter-gamble/de-cf-pyrogai/aif-ipa:v1.5.1",
+    "postCreateCommand": "set -x ; echo source /virtualenvs/ipa/bin/activate >> /root/.bashrc ; . /virtualenvs/ipa/bin/activate ; pip install -e .'[devel]'"
+}

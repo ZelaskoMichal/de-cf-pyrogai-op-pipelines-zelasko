@@ -1,0 +1,27 @@
+ARG BASEIMAGE=
+FROM ${BASEIMAGE}
+
+ENV VENVDIR=/virtualenvs/ipa
+
+# Add PG Certificate - relevant details:
+# subject=DC=com, DC=PG, OU=Certification Authorities, CN=PG Root CA
+# notAfter=Nov 20 21:52:02 2030 GMT
+RUN echo "-----BEGIN CERTIFICATE-----\nMIIDhDCCAmygAwIBAgIEWffYtDANBgkqhkiG9w0BAQsFADBiMRMwEQYKCZImiZPy\nLGQBGRYDY29tMRIwEAYKCZImiZPyLGQBGRYCUEcxIjAgBgNVBAsTGUNlcnRpZmlj\nYXRpb24gQXV0aG9yaXRpZXMxEzARBgNVBAMTClBHIFJvb3QgQ0EwHhcNMjEwODIw\nMjEyMjAyWhcNMzAxMTIwMjE1MjAyWjBiMRMwEQYKCZImiZPyLGQBGRYDY29tMRIw\nEAYKCZImiZPyLGQBGRYCUEcxIjAgBgNVBAsTGUNlcnRpZmljYXRpb24gQXV0aG9y\naXRpZXMxEzARBgNVBAMTClBHIFJvb3QgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IB\nDwAwggEKAoIBAQCvzYvNn6TTw4aMB9/S0eDcxfKQBub10ce+ThkBqfJh3TvM4QWE\ndJCbAriKdu7mC8LWiL1WWOJ1nELseounY/XD+pmcvjN8zdbQu96VdpzVNAAkuUIG\nXncMKR1rs4iYseEDQTiYAm/sGQp/7E/6IPfqII5ijPARpn2LS4+EljpuJu93IrLi\nraLcX6JwLCpW8+Donmdagr2nc7G2a4XpM5Ym4b8Cur1wAyXA8ofGbJkAzHFtl64z\nMTytTSGgxuVJhit3exXo0W4EbyX7PiPklo0zZOaAQUZg+fczVPc7dDQ4UHO4Cdw3\nxPD2p+aY2b1ALg+O5GQ8jBA0ESKtnEAi9pZVAgMBAAGjQjBAMA4GA1UdDwEB/wQE\nAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBSJ5rbVwA1YQU1YK5Mzw0mm\nAdk86zANBgkqhkiG9w0BAQsFAAOCAQEALCXLR6Jvd7uZiBMz0KUBPYt0I2D1nSkT\nAkAo8UehPcWQnobXRE2v0fPG6RFSIx52Ve24VxI09Celk1rmoRz0ypbuLpxR43ZZ\nsgZ97BQsuSXQ33Gwmy8S88MNSQh4fGkw8j9M/qLxXR4PgsGZZt6a2SlILo1meMyB\n7eFC4qWru6xdLhus1HkMEwK6gvGo6MuENfQE5aifJYHpfjmHQkqKDeK4mK33ec8F\n6rHi5MT1Y8sb2a1lhxIX9msEE5R9IDfobHmVZUcBV4pDS27h5Np6O3vpAmsmyRRp\nHAcIb1YGBLnhP55WZtsBBdmzCNMPbmdBRATCIaJ3+T/y6TZFzo7gkA==\n-----END CERTIFICATE-----\n" > /usr/local/share/ca-certificates/pg.crt && update-ca-certificates
+
+
+# Create virtual environment and install package requirements only (for better caching). We are temporarily adding the
+# Git credentials to a file, which we remove at the end to not ship them with the image.
+# Requirements are automatically patched to add IPA and Rhea
+ADD requirements.txt /build/
+COPY /pip.conf /etc/pip.conf
+
+RUN --mount=type=cache,mode=0755,target=/root/.cache/pip \
+    --mount=type=secret,id=GITHUB_TOKEN \
+    set -x \
+    && cat /build/requirements.txt | sed -e 's/pyrogai\[\([^]]*\)\]/pyrogai[\1,ipa,rhea]/' > /build/requirements-ipa.txt \
+    && python -m venv "${VENVDIR}" \
+    && . ${VENVDIR}/bin/activate \
+    && git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=`cat /run/secrets/GITHUB_TOKEN`; }; f" \
+    && pip install -r /build/requirements-ipa.txt \
+    && git config --global --unset credential.https://github.com/procter-gamble/.helper \
+    && rm -f /etc/pip.conf

@@ -1,0 +1,42 @@
+compute: small
+description: Simple pipeline, used for our quickstart tutorial. It is not meant to be used as a starting point for real projects.
+experiment: qs_experiment
+name: quickstart
+runtime: runtime_quickstart
+platforms:
+- AML
+- Local
+- DBR
+- Vertex
+
+scope: quickstart
+
+input_output_slots:
+-   name: input_data
+    type: cloudfile
+    url: cloud://{config.quickstart.data_dir}/dummy.parquet
+-   name: model_uri
+    type: basic
+
+
+steps:
+-   class: template_pipelines.steps.quickstart.data_preprocessing:Preprocessing
+    name: preprocessing
+    inputs:
+    - input_data
+-   class: aif.pyrogai.steps:DqStep
+    name: data_validation_after_preprocessing
+    run_after:
+    - preprocessing
+-   class: template_pipelines.steps.quickstart.model_training:ModelTraining
+    name: model_training
+    run_after:
+    - preprocessing
+    outputs:
+    - model_uri
+-   class: template_pipelines.steps.quickstart.model_evaluation:ModelEvaluation
+    name: model_evaluation
+    run_after:
+    - model_training
+    inputs:
+    - model_uri

@@ -1,0 +1,51 @@
+# Basic .gitattributes for a python repo.
+# based on https://github.com/alexkaratarakis/gitattributes/blob/master/Python.gitattributes
+
+# * text=auto eol=lf
+
+# Source files
+# ============
+*.pxd    text eol=lf diff=python
+*.py     text eol=lf diff=python
+*.py3    text eol=lf diff=python
+*.pyw    text eol=lf diff=python
+*.pyx    text eol=lf diff=python
+*.pyz    text eol=lf diff=python
+*.pyi    text eol=lf diff=python
+
+# Binary files
+# ============
+*.db     binary
+*.p      binary
+*.pkl    binary
+*.pickle binary
+*.pyc    binary export-ignore
+*.pyo    binary export-ignore
+*.pyd    binary
+
+# Jupyter notebook
+*.ipynb  text
+
+# Note: .db, .p, and .pkl files are associated
+# with the python modules ``pickle``, ``dbm.*``,
+# ``shelve``, ``marshal``, ``anydbm``, & ``bsddb``
+# (among others).
+
+# https://github.com/alexkaratarakis/gitattributes/blob/master/Common.gitattributes
+
+# Scripts
+*.bash     text eol=lf
+*.fish     text eol=lf
+*.sh       text eol=lf
+# These are explicitly windows files and should use crlf
+*.{bat,[bB][aA][tT]}  text eol=crlf
+*.{cmd,[cC][mM][dD]}  text eol=crlf
+*.ps1      text eol=crlf
+
+#
+# Exclude files from exporting
+#
+
+.gitattributes export-ignore
+.gitignore     export-ignore
+.gitkeep       export-ignore

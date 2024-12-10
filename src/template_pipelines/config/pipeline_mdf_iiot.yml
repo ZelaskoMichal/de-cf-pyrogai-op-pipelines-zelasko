@@ -1,0 +1,20 @@
+name: mdf_iiot
+description: (BETA) A general demonstration use-case of the MDF IIOT Platform following features of the new IIOT Python Adapter Framework.
+compute: small
+experiment: mdf-iiot
+runtime: runtime_mdf_iiot
+platforms:
+  - AML
+  - Local
+
+scope: mdf-iiot
+
+input_output_slots:
+  - name: mdf_model_uri
+    type: basic
+
+steps:
+  - class: template_pipelines.steps.mdf_iiot.log_model:LogModel
+    name: log_model
+    outputs:
+      - mdf_model_uri

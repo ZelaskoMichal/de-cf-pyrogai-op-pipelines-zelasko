@@ -1,0 +1,15 @@
+name: eda_pipeline
+description: Example usage of EDA with PyrogAI framework
+experiment: eda_pipeline
+compute: small
+runtime: runtime_eda_pipeline
+scope: eda-pipeline
+platforms:
+  - Local
+  - AML
+  - DBR
+  - Vertex
+
+steps:
+  - name: eda
+    class: template_pipelines.steps.eda_pipeline.eda_pipeline:EdaExample

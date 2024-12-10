@@ -1,0 +1,40 @@
+name: ml_observability
+description: Pipeline implementation demonstrating Observability
+experiment: template
+runtime: runtime_ml_observability
+compute: small
+scope: ml-observability
+
+steps:
+  - name: generate_data
+    class: template_pipelines.steps.ml_observability.iris_1_generate_data:GenerateDataStep
+
+  - name: standardize_data
+    class: template_pipelines.steps.ml_observability.iris_2_standarize_data:StandardizeDataStep
+    run_after:
+      - generate_data
+
+  - name: fix_data
+    class: template_pipelines.steps.ml_observability.iris_3_fix_data:FixDataStep
+    run_after:
+      - standardize_data
+
+  - name: split_data
+    class: template_pipelines.steps.ml_observability.iris_4_split_data:SplitDataStep
+    run_after:
+      - fix_data
+
+  - name: train_model
+    class: template_pipelines.steps.ml_observability.iris_5_train_model:TrainModelStep
+    run_after:
+      - split_data
+
+  - name: score_data
+    class: template_pipelines.steps.ml_observability.iris_6_score_data:ScoreDataStep
+    run_after:
+      - train_model
+
+  - name: observability_step
+    class: template_pipelines.steps.ml_observability.iris_observability_step:ModelObservability
+    run_after:
+      - score_data

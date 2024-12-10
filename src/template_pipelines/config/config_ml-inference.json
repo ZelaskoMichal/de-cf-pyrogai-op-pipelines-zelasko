@@ -1,0 +1,73 @@
+{
+    "ml_inference": {
+        "target": "redemption_status",
+        "data_dir": "CouponData",
+        "model_dir": "CouponData/models",
+        "dbr_model_uri": "runs:/44ba5df61c464944b4114a1cd99bee82/anomaly_detector",
+        "output_file": "anomaly_predictions.csv"
+    },
+    "great_expectations": {
+        "suites": {
+            "feature_creation.critical": {
+                "file": "feature_created/feature_created.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "age_range",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "relationship_status",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "rented",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "family_size",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "no_of_children",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "income_bracket",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "campaign_duration",
+                            "max_value": 60.0,
+                            "mostly": 0.98
+                        }
+                    }
+                ]
+            }
+        },
+        "steps": {
+            "data_validation_after_feature_creation": [
+                "feature_creation.critical"
+            ]
+        }
+    }
+}

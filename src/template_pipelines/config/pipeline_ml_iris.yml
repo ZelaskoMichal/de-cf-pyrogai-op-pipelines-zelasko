@@ -1,0 +1,40 @@
+name: ml_iris
+description: Pipeline implementation of decision tree classifier with iris dataset
+experiment: template
+runtime: runtime_ml_iris
+compute: small
+scope: ml-iris
+platforms:
+  - Vertex
+  - DBR
+  - AML
+  - Local
+
+steps:
+  - name: generate_data
+    class: template_pipelines.steps.ml_iris.iris_1_generate_data:GenerateDataStep
+
+  - name: standardize_data
+    class: template_pipelines.steps.ml_iris.iris_2_standarize_data:StandardizeDataStep
+    run_after:
+      - generate_data
+
+  - name: fix_data
+    class: template_pipelines.steps.ml_iris.iris_3_fix_data:FixDataStep
+    run_after:
+      - standardize_data
+
+  - name: split_data
+    class: template_pipelines.steps.ml_iris.iris_4_split_data:SplitDataStep
+    run_after:
+      - fix_data
+
+  - name: train_model
+    class: template_pipelines.steps.ml_iris.iris_5_train_model:TrainModelStep
+    run_after:
+      - split_data
+
+  - name: score_data
+    class: template_pipelines.steps.ml_iris.iris_6_score_data:ScoreDataStep
+    run_after:
+      - train_model

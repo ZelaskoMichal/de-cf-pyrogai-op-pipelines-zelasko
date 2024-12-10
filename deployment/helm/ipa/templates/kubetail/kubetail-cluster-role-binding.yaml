@@ -1,0 +1,22 @@
+{{- /* Commenting this out for now - needs to be created globally
+{{ if (.Values.ipa.enable_kubetail) }}
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: kubetail
+  labels:
+    app.kubernetes.io/name: kubetail
+    app.kubernetes.io/instance: kubetail
+    app.kubernetes.io/managed-by: Helm
+    release: {{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubetail
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-kubetail-sa
+  namespace: {{ .Release.Namespace }}
+{{ end }}
+End of commented out section */}}

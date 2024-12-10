@@ -1,0 +1,29 @@
+{
+    "doc_vectorization": {
+        "data_dir": "docs",
+        "genai_proxy": "https://genai-platform-dev.pg.com/stg/v1",
+        "cognitive_services": "https://cognitiveservices.azure.com/.default",
+        "open_api_version": "2024-02-01",
+        "headers": {
+                "userid": "aif_tpt@pg.com",
+                "project-name": "AIFactory TPT"
+        },
+        "llm_params": {
+            "deployment_name": "GPT-35-16K",
+            "temperature": 0.5,
+            "streaming": false,
+            "request_timeout": 60,
+            "model_kwargs": {
+                "top_p": 0.9
+            }
+        },
+        "embedding_params": {
+            "deployment": "TEXT-EMBEDDING-ADA-002",
+            "chunk_size": 1,
+            "request_timeout": 20,
+            "max_retries": 20,
+            "show_progress_bar": true
+        }
+
+    }
+}

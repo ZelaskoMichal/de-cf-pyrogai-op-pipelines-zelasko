@@ -1,0 +1,119 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-k8s-jinja-templates
+  labels:
+    app: {{ .Chart.Name }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+
+  consumer-service-template.yaml.j2: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: {{`{{service_name}}`}}
+      namespace: {{ .Release.Namespace }}
+      labels:
+        app: {{ .Chart.Name }}
+        component: consumer
+        release: {{ .Release.Name }}
+        ipazero-task-name: "{{`{{task_label}}`}}"
+    spec:
+      type: ClusterIP
+      ports:
+      - port: {{`{{port}}`}}
+        protocol: TCP
+      selector:
+        release: {{ .Release.Name }}
+        job-name: "{{`{{job_name}}`}}"
+
+{{ range .Values.ipazero.queues }}
+{{ $jobName := printf "%s-%s-q%s-{{suffix}}" $.Release.Name $.Chart.Name .name }}
+  consumer-job-template-{{ .name }}.yaml.j2: |
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      annotations:
+        ipazero-kwargs:
+        ipazero-port:
+        ipazero-run-count:
+      name: {{ $jobName }}
+      namespace: {{ $.Release.Namespace }}
+      labels:
+        app: {{ $.Chart.Name }}
+        component: consumer
+        release: {{ $.Release.Name }}
+        heritage: {{ $.Release.Service }}
+        ipazero-task-name:
+        ipazero-job-name: {{ $jobName  }}
+        ipazero-queue: {{ .name }}
+    spec:
+      ttlSecondsAfterFinished: {{ $.Values.ipazero.ttl_after_finished_s }}  # delete job after completion
+      template:
+        metadata:
+          labels:
+            app: {{ $.Chart.Name }}
+            component: consumer
+            release: {{ $.Release.Name }}
+            heritage: {{ $.Release.Service }}
+        spec:
+          serviceAccountName: {{ $.Release.Name }}-{{ $.Chart.Name }}-sa
+          imagePullSecrets:
+            - name: regcred
+          containers:
+          - name: consumer
+            image: "{{ $.Values.ipa.image_full }}"
+            imagePullPolicy: IfNotPresent
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              runAsNonRoot: true
+              runAsUser: 999
+            command:
+            - "/bin/bash"
+            - "-c"
+            args:
+            - |
+                {{ $.Values.istio.wait_for_istio }} && {{ $.Values.ipazero.venv_activate_cmd }} && ipazero-consumer
+                EXITCODE=$?
+                {{ $.Values.istio.quit_istio }}
+                exit $EXITCODE
+            envFrom:
+            - configMapRef:
+                name: {{ $.Release.Name }}-{{ $.Chart.Name }}-envvars
+            env:
+            - name: IPAZERO_QUEUE
+              value: {{ .name }}
+            - name: IPAZERO_PARENT_JOB
+              value: {{ $jobName }}
+            - name: IPAZERO_LABEL_SELECTOR
+              value: "release = {{ $.Release.Name }}, ipazero-queue = {{ .name }}"
+            volumeMounts:
+              # Job needs the template to create the Service
+              - name: k8s-jinja-templates
+                mountPath: /etc/k8s_jinja_templates
+              - name: istio-scripts
+                mountPath: /etc/istio_scripts
+              - name: tmp-folder
+                mountPath: /tmp
+            resources:
+              requests:
+                memory: "{{ .memory }}"
+                cpu: "{{ .cpu }}"
+          restartPolicy: Never
+          volumes:
+            - name: k8s-jinja-templates
+              configMap:
+                name: {{ $.Release.Name }}-{{ $.Chart.Name }}-k8s-jinja-templates
+                defaultMode: 0755
+            - name: istio-scripts
+              configMap:
+                name: {{ $.Release.Name }}-{{ $.Chart.Name }}-istio-scripts
+                defaultMode: 0755
+            - name: tmp-folder
+              emptyDir: {}
+      backoffLimit: 1
+{{ end }}{{- /* End of range over queues for Job templates */ -}}
+{{- end }}

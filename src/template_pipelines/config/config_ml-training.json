@@ -1,0 +1,106 @@
+{
+    "ml_training": {
+        "random_state": 30,
+        "target": "redemption_status",
+        "learning_rate": 0.01,
+        "stop_learning": 10,
+        "epochs": 100,
+        "batch_size": 512,
+        "min_tp": 0.1,
+        "data_dir": "CouponData"
+    },
+    "great_expectations": {
+        "suites": {
+            "feature_creation.critical": {
+                "file": "feature_created/feature_created.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "age_range",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "relationship_status",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "rented",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "family_size",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "no_of_children",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "income_bracket",
+                            "mostly": 0.55
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "campaign_duration",
+                            "max_value": 60.0,
+                            "mostly": 0.98
+                        }
+                    }
+                ]
+            },
+            "imputation_scaling.warning": {
+                "file": "imputed_scaled/imputed_scaled.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "age_range",
+                            "min_value": 0,
+                            "max_value": 5
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "income_bracket",
+                            "max_value": 12
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "family_size",
+                            "max_value": 4
+                        }
+                    }
+                ]
+            }
+        },
+        "steps": {
+            "data_validation_after_feature_creation": [
+                "feature_creation.critical"
+            ],
+            "data_validation_after_imputation": [
+                "imputation_scaling.warning"
+            ]
+        }
+    }
+}

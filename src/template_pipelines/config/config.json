@@ -1,0 +1,32 @@
+{
+    "pooled_secrets": [
+        "metasecret",
+        "license_xpress_1",
+        "this_is_pooled"
+    ],
+    "optimization": {
+        "optimisation_step_1": {
+            "fall_back_to_community_license": true,
+            "license_secret_name": "license_xpress_1"
+        }
+    },
+    "notification_handlers": [
+        {
+            "notification_type": "email",
+            "notify_on": [],
+            "template": "notification_email_template.html.j2",
+            "recipients": [
+                "user1@pg.com"
+            ],
+            "subject": "[PyrogAI-{{step.environment.value}}] [{{step.status.value|upper}}] Test pipelines for scope '{{self.scope}}'",
+            "smtp": {
+                "server_address": "smtp.office365.com",
+                "port": 587,
+                "start_tls": true,
+                "user": "aif.im@pg.com",
+                "password_secret_name": "SMTP-PASSWORD"
+            },
+            "dry_run": true
+        }
+    ]
+}

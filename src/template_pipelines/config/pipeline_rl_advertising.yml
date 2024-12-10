@@ -1,0 +1,50 @@
+name: rl_advertising
+description: Demonstrates a simplistic programmatic advertising use case utilizing Reinforcement Learning (RL)
+experiment: exp_ml
+compute: small
+runtime: runtime_rl_advertising
+scope: rl-advertising
+platforms:
+    - Local
+    - AML
+    - DBR
+    - Vertex
+input_output_slots:
+-   name: us_census_data.parquet
+    type: cloudfile
+    url: cloud://{config.rl_advertising.data_dir}/us_census_data.parquet
+
+-   name: action_value_model
+    type: cloudfile
+    url: cloud://{config.rl_advertising.data_dir}/models/action_value_model.pth
+
+-   name: model_uri
+    type: basic
+
+-   name: kfp_md_plot
+    type: kfp_artifact
+    kfp_type: Plot
+
+steps:
+-   name: data_preprocessing
+    class: template_pipelines.steps.rl_advertising.data_preprocessing:Preprocessing
+    inputs:
+        - us_census_data.parquet
+
+-   name: bandit_simulation
+    class: template_pipelines.steps.rl_advertising.bandit_simulation:BanditSimulation
+    outputs:
+        - kfp_md_plot
+        - model_uri
+        - action_value_model
+    run_after:
+        - data_preprocessing
+
+-   name: bandit_evaluation
+    class: template_pipelines.steps.rl_advertising.bandit_evaluation:BanditEvaluation
+    inputs:
+        - model_uri
+    outputs:
+        - kfp_md_plot
+    run_after:
+        - bandit_simulation

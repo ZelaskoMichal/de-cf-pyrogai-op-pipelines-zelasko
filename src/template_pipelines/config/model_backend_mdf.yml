@@ -1,0 +1,15 @@
+name: mdf_backend
+type: acr_image_registry
+url: acrci3415437dev01.azurecr.io
+environments:
+  - local
+  - dev
+runtimes:
+  mdf:
+    dockerfile_path: src/template_pipelines/utils/mdf_iiot/adapter/Dockerfile.dev # Path requires adjustment
+    docker_args:
+      build_args:
+        SIMULATOR_IMAGE: acrci3415437dev01.azurecr.io/platform/simulator:beta
+        PYTHON_BASE_IMAGE: acrci3415437dev01.azurecr.io/base/python:3.10
+        ADAPTER_PATH: src/template_pipelines/utils/mdf_iiot/adapter # Path requires adjustment
+    tag: aif/demo/mdf_model

@@ -1,0 +1,88 @@
+name: Add profiling info to PR
+
+on:
+  workflow_call:
+    inputs:
+      github_sha:
+        required: true
+        type: string
+      cw_run_id:
+        required: true
+        type: string
+
+jobs:
+  profiling_info:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          
+      - name: Download profiling artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: profiling/
+          pattern: profiling-${{ inputs.github_sha }}-*
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.cw_run_id }}
+
+      - name: Upload merged profiling artifact
+        id: profiling-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: profiling-${{ inputs.github_sha }}
+          path: profiling/
+          retention-days: 10
+          overwrite: true
+
+      - name: Find profiling comment
+        if: startsWith(github.event_name, 'pull_request')
+        uses: peter-evans/find-comment@v3
+        id: profiling-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Profiling comment
+
+      - name: Create profiling comment (with profiling artifact)
+        if: steps.profiling-comment.outputs.comment-id == '' && steps.profiling-artifact.outputs.artifact-id != ''
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## Profiling comment
+            ### User documentation for profiling could be found [here](https://jira-pg-ds.atlassian.net/wiki/spaces/HWR/pages/4662461542/EP-12+dnalib+profilers+-+end-user+documentation)
+            **Commit ${{ inputs.github_sha }}**
+            [Download artifact](${{ steps.profiling-artifact.outputs.artifact-url }})
+
+      - name: Create profiling comment (no profiling artifact)
+        if: steps.profiling-comment.outputs.comment-id == '' && steps.profiling-artifact.outputs.artifact-id == ''
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ## Profiling comment
+            ### User documentation for profiling could be found [here](https://jira-pg-ds.atlassian.net/wiki/spaces/HWR/pages/4662461542/EP-12+dnalib+profilers+-+end-user+documentation)
+            **Commit ${{ inputs.github_sha }}**
+            Profiling wasn't used in this commit
+
+      - name: Update profiling comment (with profiling artifact)
+        if: steps.profiling-comment.outputs.comment-id != '' && steps.profiling-artifact.outputs.artifact-id != ''
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          comment-id: ${{ steps.profiling-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            **Commit ${{ inputs.github_sha }}**
+            [Download artifact](${{ steps.profiling-artifact.outputs.artifact-url }})
+
+      - name: Update profiling comment (no profiling artifact)
+        if: steps.profiling-comment.outputs.comment-id != '' && steps.profiling-artifact.outputs.artifact-id == ''
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          comment-id: ${{ steps.profiling-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            **Commit ${{ inputs.github_sha }}**
+            Profiling wasn't used in this commit

@@ -1,0 +1,71 @@
+{{- if eq (default .Values.ipa.enable_ipazero false) true }}
+{{ if .Values.ipazero.enable_sender_debug }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-sender
+  labels:
+    app: {{ .Chart.Name }}
+    component: sender
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  strategy:
+    type: "Recreate"
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      component: sender
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        component: sender
+        release: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-{{ .Chart.Name }}-sa
+      imagePullSecrets:
+          - name: regcred
+      containers:
+      - args:
+        - |
+            {{ .Values.istio.wait_for_istio }} && {{ .Values.ipazero.venv_activate_cmd }} && ipazero-sender
+            EXITCODE=$?
+            {{ .Values.istio.quit_istio }}
+            exit $EXITCODE
+        command:
+        - /bin/bash
+        - -c
+        image: "{{ $.Values.ipa.image_full }}"
+        name: sender
+        envFrom:
+        - configMapRef:
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-envvars
+        env:
+        - name: IPAZERO_QUEUE
+          value: "big"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 999
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "10m"
+        volumeMounts:
+          - name: istio-scripts
+            mountPath: /etc/istio_scripts
+          - name: tmp-folder
+            mountPath: /tmp
+      volumes:
+        - name: istio-scripts
+          configMap:
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-istio-scripts
+            defaultMode: 0755
+        - name: tmp-folder
+          emptyDir: {}
+{{ end }}
+{{ end }}

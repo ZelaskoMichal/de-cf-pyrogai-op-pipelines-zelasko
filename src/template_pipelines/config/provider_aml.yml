@@ -1,0 +1,84 @@
+computes:
+  small:
+    name: default2
+    type: amlcompute
+    details:
+      idle_time_before_scale_down: 300
+      max_instances: 8
+      min_instances: 0
+      size: STANDARD_D4_V3
+      tier: low_priority
+details:
+  client_info:
+    container_name: azureml-blobstore-5a4bef7e-1bf4-4448-913c-e5b27ab9db0a
+    datastore_name: workspaceblobstore
+    keyvault_name: mlwpyrogaicse4e8fykkv
+    resource_group: AZ-RG-AIP-MLWPYROGAICSE
+    storage_account: mlwpyrogaicse4e8fyksa
+    subscription_id: 27c0a03b-f477-4c6d-b9a9-608e91d2e83b
+    workspace_name: mlwpyrogaicse
+  provider_info:
+    pipeline_dir: .workspace
+environment:
+- dev
+- stg
+- prod
+name: AML Provider
+platform: AML
+runtimes:
+  runtime_aiapps_aml:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_aiapps_aml.txt
+  runtime_aiapps_dbr:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_aiapps_dbr.txt
+  runtime_aml_sweep:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_aml_sweep.txt
+  runtime_bq_io:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_bq_io.txt
+  runtime_blob_data:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_blob_data_aml.txt
+  runtime_dq_ge:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_dq_ge.txt
+  runtime_gen_ai_product_opt:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_gen_ai_product_opt.txt
+  runtime_hello_gen_ai:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_hello_gen_ai.txt
+  runtime_mdf_iiot:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_mdf_iiot.txt
+  runtime_ml_inference:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_inference.txt
+  runtime_ml_iris:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_iris.txt
+  runtime_ml_observability:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_observability.txt
+  runtime_ml_skeleton:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_skeleton.txt
+  runtime_ml_training:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_training.txt
+  runtime_operations:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_operations.txt
+  runtime_optimization:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_optimization.txt
+  runtime_orchestration:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_orchestration.txt
+  runtime_quickstart:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_quickstart.txt
+  runtime_realtime_inference:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_realtime_inference.txt
+  runtime_rl_advertising:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_rl_advertising.txt
+  runtime_time_series:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_time_series.txt
+  runtime_upload_data:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_upload_data.txt
+  runtime_vertex_meta:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_vertex_meta.txt
+  runtime_video_analysis:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_video_analysis.txt
+  runtime_doc_vectorization:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_doc_vectorization.txt
+  runtime_crunch_tutorial:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_crunch_tutorial.txt
+  runtime_gu_translation:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_gu_translation.txt
+  runtime_eda_pipeline:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_eda_pipeline.txt

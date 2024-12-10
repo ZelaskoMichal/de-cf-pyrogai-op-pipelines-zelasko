@@ -1,0 +1,51 @@
+name: doc_vectorization
+description: Demonstrates a simplied AskPG pipeline for preprocessing and vectorizing documents. Beta version
+experiment: exp_ml
+compute: small
+runtime: runtime_doc_vectorization
+scope: doc-vectorization
+platforms:
+    - Local
+    - AML
+input_output_slots:
+-   name: doc_input_dir
+    type: cloudfile
+    url: cloud://{config.doc_vectorization.data_dir}/inputs
+    is_dir: true
+-   name: aggs.json
+    type: cloudfile
+    url: cloud://{config.doc_vectorization.data_dir}/aggs.json
+-   name: faiss_vector_db
+    type: cloudfile
+    url: cloud://{config.doc_vectorization.data_dir}/faiss_vector_db
+    is_dir: true
+-   name: evaluation.json
+    type: cloudfile
+    url: cloud://{config.doc_vectorization.data_dir}/evaluation.json
+
+steps:
+-   name: ingestion
+    class: template_pipelines.steps.doc_vectorization.ingestion:Ingestion
+    inputs:
+        - doc_input_dir
+    outputs:
+        - aggs.json
+
+-   name: vectorization
+    class: template_pipelines.steps.doc_vectorization.vectorization:Vectorization
+    inputs:
+        - aggs.json
+    outputs:
+        - faiss_vector_db
+    run_after:
+        - ingestion
+
+-   name: evaluation
+    class: template_pipelines.steps.doc_vectorization.evaluation:Evaluation
+    inputs:
+        - aggs.json
+        - faiss_vector_db
+    outputs:
+        - evaluation.json
+    run_after:
+        - vectorization

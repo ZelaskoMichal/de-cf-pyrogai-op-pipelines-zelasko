@@ -1,0 +1,6 @@
+pyrogai[azureml,local,dbr] @ git+https://github.com/procter-gamble/de-cf-pyrogai@v1.5.1
+azure-identity
+langchain>=0.0.348,<0.1
+openai>=1.0.0,<2
+faiss-cpu==1.7.4
+tiktoken

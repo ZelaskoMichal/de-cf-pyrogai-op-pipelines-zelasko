@@ -1,0 +1,17 @@
+name: hello_gen_ai
+description: Gives a template pipeline with implemented functions for future develops using GenAI/OpenAI
+experiment: exp_ml
+compute: small
+runtime: runtime_hello_gen_ai
+scope: hello-gen-ai
+
+params:
+  system_message: You are a person who welcomes others. Your only task is to greet the person you just met nicely.
+  user_message: My name is Michal
+
+platforms:
+  - Local
+  - AML
+steps:
+  - name: hello_gen_ai
+    class: template_pipelines.steps.hello_gen_ai.hello_gen_ai:HelloGenAI

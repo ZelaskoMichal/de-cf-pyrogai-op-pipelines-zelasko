@@ -1,0 +1,99 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.md'
+ 
+jobs:
+  documentation_update:
+    name: Update documentation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:  ['3.9']
+    steps:
+      # Do not remove: useful for debug purposes
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      - name: Check if secret PG_DNA_GITHUB_TOKEN is available
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $PG_DNA_GITHUB_TOKEN ]]; then
+              MSG='Secret `PG_DNA_GITHUB_TOKEN` was not found.'
+              MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+            PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+            set -e
+            git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+            echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+      - name: Fetch code with previous commits
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get helper scripts to process documents
+        run: |
+          git clone https://github.com/procter-gamble/de-cf-pyrogai.git temp-repo
+          cp -R temp-repo/test/sharepoint_doc_update .
+          cp temp-repo/requirements-*docs.txt .
+
+      # Enable Python
+      - name: Enable Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3.1.2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Create venv
+        run: python -m venv .venv
+    
+      # Install the Python dependencies only
+      - name: Install Python Dependencies
+        run: |
+          set -e
+          source .venv/bin/activate
+          pip install -U pip
+          pip install uv
+          for REQ in requirements-spdocs.txt; do
+              ERR=0
+              echo "::group::Installing $REQ using uv pip"
+              uv pip install -r "$REQ" || ERR=$?
+              echo "::endgroup::"
+              if [[ $ERR != 0 ]]; then
+                  echo "::error::Failed uv pip installation of $REQ - exitcode was $ERR"
+                  false  # abort installation
+              fi
+          done
+
+      - name: Classify changed markdown docs as either added or removed
+        id: markdown-classification
+        run: |
+          git_changes=$(git diff --name-status ${{ github.event.before }} ${{ github.event.sha }})
+          classification=$(python sharepoint_doc_update/classify_docs.py --git-changes "$git_changes" --regex-pattern ".*\.md$")
+          echo $classification
+          echo "json_updates<<EOF" >> $GITHUB_OUTPUT
+          echo $classification >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update docs on Sharepoint
+        env:
+          SHAREPOINT_USERNAME: ${{ secrets.SHAREPOINT_USERNAME }}
+          SHAREPOINT_PASSWORD: ${{ secrets.SHAREPOINT_PASSWORD }}
+        run: |
+          source .venv/bin/activate
+          echo ${{ steps.markdown-classification.outputs.json_updates }}
+          sed -i '/sharepoint\.add_file(.*'metadata\.json'.*)/d' sharepoint_doc_update/update_sharepoint_files.py
+          python sharepoint_doc_update/update_sharepoint_files.py --json-updates '${{ steps.markdown-classification.outputs.json_updates }}' \
+            --project 'template_pipelines' --username $SHAREPOINT_USERNAME --password $SHAREPOINT_PASSWORD

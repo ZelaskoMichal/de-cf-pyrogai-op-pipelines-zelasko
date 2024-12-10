@@ -1,0 +1,90 @@
+computes:
+  large:
+    new_cluster:
+      node_type_id: Standard_DS13_v2
+      num_workers: 4
+      spark_conf:
+        parquet.enable.summary-metadata: false
+        spark.driver.maxResultSize: 4g
+        spark.sql.sources.commitProtocolClass: org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
+      spark_env_vars:
+        mount_asset_secret_name: fs.azure.account.key.testworkspacesa.blob.core.windows.net
+      spark_version: 14.3.x-scala2.12
+  small:
+    new_cluster:
+      node_type_id: Standard_DS3_v2
+      num_workers: 1
+      spark_conf:
+        parquet.enable.summary-metadata: false
+        spark.driver.maxResultSize: 4g
+        spark.sql.sources.commitProtocolClass: org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
+      spark_env_vars:
+        mount_asset_secret_name: fs.azure.account.key.testworkspacesa.blob.core.windows.net
+      spark_version: 14.3.x-scala2.12
+details:
+  access_control_list:
+  - group_name: admins
+    permission_level: CAN_MANAGE
+  azure_proxy: http://zeeuproxy.eu.pg.com:9400
+  container_name: azureml-blobstore-5a4bef7e-1bf4-4448-913c-e5b27ab9db0a
+  host: https://adb-6002052623675423.3.azuredatabricks.net/
+  keyvault: mlwpyrogaicse4e8fykkv
+  secret_scope: default
+  storage_account: mlwpyrogaicse4e8fyksa
+environment:
+- dev
+- stg
+- prod
+name: DBR Provider
+platform: DBR
+runtimes:
+  runtime_aiapps_aml:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_aiapps_aml.txt
+  runtime_aiapps_dbr:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_aiapps_dbr.txt
+  runtime_aml_sweep:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_aml_sweep.txt
+  runtime_bq_io:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_bq_io.txt
+  runtime_blob_data:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_blob_data_dbr.txt
+  runtime_dq_ge:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_dq_ge.txt
+  runtime_gen_ai_product_opt:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_gen_ai_product_opt.txt
+  runtime_hello_gen_ai:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_hello_gen_ai.txt
+  runtime_mdf_iiot:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_mdf_iiot.txt
+  runtime_ml_inference:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_inference.txt
+  runtime_ml_iris:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_iris.txt
+  runtime_ml_observability:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_observability.txt
+  runtime_ml_skeleton:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_skeleton.txt
+  runtime_ml_training:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_training.txt
+  runtime_operations:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_operations.txt
+  runtime_optimization:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_optimization.txt
+  runtime_orchestration:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_orchestration.txt
+  runtime_quickstart:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_quickstart.txt
+  runtime_realtime_inference:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_realtime_inference.txt
+  runtime_rl_advertising:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_rl_advertising.txt
+  runtime_time_series:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_time_series.txt
+  runtime_upload_data:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_upload_data.txt
+  runtime_vertex_meta:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_vertex_meta.txt
+  runtime_crunch_tutorial:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_crunch_tutorial.txt
+  runtime_eda_pipeline:
+    requirements_in_filepath: src/template_pipelines/reqs/requirements_eda_pipeline.txt

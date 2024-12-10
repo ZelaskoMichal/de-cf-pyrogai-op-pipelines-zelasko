@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-istio-scripts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+
+  wait-for-istio.sh: |
+    #!/bin/bash -e
+    echo '[istio] waiting for Istio to be up'
+    for ((I=0; I<90; I++)); do
+      ERR=
+      curl -m 1 --connect-timeout 1 -fsI http://localhost:15021/healthz/ready > /dev/null || ERR=1
+      if [[ ! $ERR ]]; then
+        break
+      fi
+      echo '[istio] waiting for Istio 2 more seconds...'
+      sleep 2
+    done
+    if [[ $ERR ]]; then
+      echo '[istio] FATAL: timeout expired while waiting for Istio'
+      exit 1
+    fi
+
+  quit-istio.sh: |
+    #!/bin/bash -e
+    echo '[istio] kindly asking Istio to quit (otherwise the Pod will live forever)'
+    while ! curl -vvv -X POST http://localhost:15020/quitquitquit; do
+        echo '[istio] could not ask Istio to quit, retrying in 1 second'
+        sleep 1
+    done
+    echo '[istio] done asking Istio to quit!'

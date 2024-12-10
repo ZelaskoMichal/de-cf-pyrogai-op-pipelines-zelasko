@@ -1,0 +1,13 @@
+{
+    "iocontext": {
+        "local_workdir": "/dbfs/pyrogai_run/{environment}/{utc_year}/{utc_month}/{utc_day}/{utc_full_dashes}_{run_id}"
+    },
+    "meta_iocontext": {
+        "local_workdir": "/dbfs/pyrogai_run/meta/{run_id}"
+    },
+    "platform": "local",
+    "workdir": {
+        "local_workdir": "/tmp/pyrogai_data"
+    },
+    "mlflow_tracking_uri": "databricks"
+}

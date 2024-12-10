@@ -1,0 +1,79 @@
+name: Vertex Provider
+platform: Vertex
+environment:
+  - dev
+  - stg
+  - prod
+details:
+  use_case: op_pipes_test
+  gcp_region: us-east4
+  region: us-east4
+  gcp_project_id: dna-aif-dev-dev-ebbb
+  gcp_bucket: dna-aif-dev-dev-ebbb-kubeflow-sa-op-pipelines-4togb0aa
+  location: us-east4
+  service_account: sa-op-pipelines
+  network: network-aifactory-dswb
+  artifact_registry_pipelines: vertex-pipelines
+  artifact_registry_gcr: gcr-sa-stepsdeploy
+  pypi_repo:
+    jfrog:
+      host: png.jfrog.io/artifactory/api/pypi/pgg-dna-pypi-virtual
+      username: itsmlops.im
+      password_secret_name: jfrog-token
+computes:
+  small:
+    cpu_request: "400m"
+    cpu_limit: 0.5
+    memory_request: "400M"
+    memory_limit: "700M"
+runtimes:
+    runtime_ml_training:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_training.txt
+    runtime_ml_skeleton:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_skeleton.txt
+    runtime_upload_data:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_upload_data.txt
+    runtime_ml_iris:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_iris.txt
+    runtime_bq_io:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_bq_io.txt
+    runtime_optimization:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_optimization.txt
+    runtime_ml_inference:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_inference.txt
+    runtime_ml_observability:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_ml_observability.txt
+    runtime_dq_ge:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_dq_ge.txt
+    runtime_blob_data:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_blob_data_local.txt
+    runtime_gen_ai_product_opt:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_gen_ai_product_opt.txt
+    runtime_operations:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_operations.txt
+    runtime_hello_gen_ai:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_hello_gen_ai.txt
+    runtime_vertex_meta:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_vertex_meta.txt
+    runtime_aiapps_aml:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_aiapps_aml.txt
+    runtime_aiapps_dbr:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_aiapps_dbr.txt
+    runtime_quickstart:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_quickstart.txt
+    runtime_time_series:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_time_series.txt
+    runtime_aml_sweep:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_aml_sweep.txt
+    runtime_realtime_inference:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_realtime_inference.txt
+    runtime_mdf_iiot:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_mdf_iiot.txt
+    runtime_rl_advertising:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_rl_advertising.txt
+    runtime_orchestration:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_orchestration.txt
+    runtime_crunch_tutorial:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_crunch_tutorial.txt
+    runtime_eda_pipeline:
+        requirements_in_filepath: src/template_pipelines/reqs/requirements_eda_pipeline.txt

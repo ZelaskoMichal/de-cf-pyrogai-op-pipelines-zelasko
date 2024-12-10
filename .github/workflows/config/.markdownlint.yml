@@ -1,0 +1,3 @@
+---
+# Base Markdownlint configuration. No rules applied
+default: false

@@ -1,0 +1,52 @@
+{
+  "config_orchestration": {
+    "pipeline_to_trigger": "ml_iris",
+    "scopes": ["scope1", "scope2"]
+  },
+  "config_scopes": {
+    "scope1": { "runtime_param1": "value1", "runtime_param2": "value2" },
+    "scope2": { "runtime_param1": "value3", "runtime_param2": "value4" },
+    "scope3": { "runtime_param1": "value5", "runtime_param2": "value6" },
+    "scope4": { "runtime_param1": "value7", "runtime_param2": "value8" },
+    "scope5": { "runtime_param1": "value9", "runtime_param2": "value10" }
+  },
+  "config_dbr": {
+    "host": "https://adb-6002052623675423.3.azuredatabricks.net",
+    "token": "your-dbr-token-from-secrets"
+  },
+  "config_aml": {
+    "tenant_id": "3596192b-fdf5-4e2c-a6fa-acb706c963d8",
+    "service_principal": {
+      "sp_id": "your-sp_id-from-secrets",
+      "sp_pass": "your-sp_pass-from-secrets"
+    },
+    "subscription_id": "27c0a03b-f477-4c6d-b9a9-608e91d2e83b",
+    "resource_group": "AZ-RG-AIP-MLWPYROGAICSE",
+    "workspace": "mlwpyrogaicse"
+  },
+  "config_vertex": {
+    "gcp_project_id": "dna-aif-dev-dev-ebbb",
+    "gcp_bucket": "dna-aif-dev-dev-ebbb-kubeflow-sa-op-pipelines-4togb0aa",
+    "region": "us-east4",
+    "service_account": "sa-op-pipelines",
+    "network": "network-aifactory-dswb",
+    "artifact_registry_pipelines": "vertex-pipelines"
+  },
+  "notification_handlers": [
+    {
+      "notification_type": "email",
+      "notify_on": ["success"],
+      "template": "notification_orchestration_email_template.html.j2",
+      "recipients": ["utracki.m@pg.com"],
+      "subject": "[PyrogAI-{{step.environment.value}}] [{{step.status.value|upper}}] Orchestration pipeline for scope:  '{{step.scope}}'",
+      "smtp": {
+        "server_address": "smtp.office365.com",
+        "port": 587,
+        "start_tls": true,
+        "user": "aifcse.im@pg.com",
+        "password_secret_name": "SHAREPOINT_APP_PASSWORD"
+      },
+      "dry_run": true
+    }
+  ]
+}

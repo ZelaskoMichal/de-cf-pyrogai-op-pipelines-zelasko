@@ -1,0 +1,30 @@
+{
+"sweep": {
+      "my_sweep": {
+        "sampling_algorithm": {
+            "type":"random"
+        },
+        "search_space": {
+          "learning_rate": {
+            "type": "uniform",
+            "min_value": 0.01,
+            "max_value": 0.9
+          },
+          "boosting_type": {
+            "type": "choice",
+            "values": [
+              "gbdt",
+              "dart"
+            ]
+          }},
+          "objective": {
+            "goal": "minimize",
+            "primary_metric": "test-multi_logloss"
+          },
+          "limits": {
+            "max_concurrent_trials": 2,
+            "max_total_trials": 3
+          }
+        }
+      }
+}

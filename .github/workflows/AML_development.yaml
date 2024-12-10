@@ -1,0 +1,312 @@
+# workflow source: pyrogai repositorypipelines
+name: Deploy to AML
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      pipelines_filepath:
+        required: true
+        type: string
+      environment-name:
+        required: true
+        type: string
+
+jobs:
+  aml_pipeline_development:
+    name: Deploy to ${{ inputs.environment-name }} AML
+    env:
+      pipelines: ${{ inputs.pipelines }}
+      environment-name: ${{ inputs.environment-name }}
+    runs-on: [pg_custom_runner_ubuntu22]
+    strategy:
+      matrix:
+        # Several Python versions can be specified: all tests will be rerun for every version
+        # Useful when migrating from one Python version to the next. Note that enabling Python is
+        # not required to run Continuous Winning (CW has its own Python environment in a Docker
+        # container): this is for running your own tests on your own code
+        python-version: ["3.9"]
+
+    steps:
+      # Do not remove: useful for debug purposes
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      - name: Check if secret PG_DNA_GITHUB_TOKEN is available
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $PG_DNA_GITHUB_TOKEN ]]; then
+              MSG='Secret `PG_DNA_GITHUB_TOKEN` was not found.'
+              MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+          echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+
+      - name: Get Pull Request sha
+        id: get_pull_request_sha
+        if: ${{ github.event_name == 'issue_comment' }}
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/:repository/pulls/:issue_id
+          repository: ${{ github.repository }}
+          issue_id: ${{ github.event.issue.number }}
+          token: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+      - name: Set deployment parameters
+        id: set_params
+        env:
+          ENVNAME: pr${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
+          SHA: ${{ github.event_name == 'issue_comment' && fromJson(steps.get_pull_request_sha.outputs.data).head.sha || github.event.pull_request.head.sha }}
+        run: |
+          echo "envname=${ENVNAME}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+      # Do not remove: it fetches your code in the current dir
+      - name: Fetch code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+          submodules: false
+          fetch-depth: 0
+      # Do not remove: it enables Continuous Winning
+      - name: Login to the GitHub Docker Registry for getting Continuous Winning
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghcr.io
+          username: pgcw
+          password: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+
+      - name: Cancel All Outdated Workflows
+        if: |
+          startsWith(github.ref, 'refs/heads/') || startsWith(github.event_name, 'pull_request')
+        uses: ./cw
+        with:
+          check: cancel-uncompleted-workflows
+          args: "--token ${{ secrets.PG_DNA_GITHUB_TOKEN }} --workflows AML_development.yaml --preserve-run most-recent"
+
+      - name: Check if AML_APP_SP_ID_PROD, AML_APP_SP_SECRET_PROD, USER_GITHUB_TOKEN and GITHUB_TOKEN are available
+        env:
+          AML_APP_SP_ID_PROD: ${{ secrets.AML_APP_SP_ID_PROD }}
+          AML_APP_SP_SECRET_PROD: ${{ secrets.AML_APP_SP_SECRET_PROD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          secrets=("AML_APP_SP_ID_PROD $AML_APP_SP_ID_PROD" "AML_APP_SP_SECRET_PROD $AML_APP_SP_SECRET_PROD" "GITHUB_TOKEN $GITHUB_TOKEN")
+          missing_secrets=()
+          for secret in "${secrets[@]}"
+          do
+              set -- $secret
+              if [[ ! $2 ]]; then
+                  missing_secrets+=($1)
+              fi
+          done
+          if [[ $missing_secrets ]]; then
+              echo "::error::Missing secrets: [${missing_secrets[*]}]. Please set these required secrets."
+              exit 1
+          fi
+          if [[ ! $USER_GITHUB_TOKEN ]]; then
+              MSG='Secret `USER_GITHUB_TOKEN` was not found.'
+              MSG="${MSG} It should be an User Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} Save it here - https://github.com/procter-gamble/de-cf-template-pipelines/settings/secrets/actions - as an USER_GITHUB_TOKEN secret."
+              MSG="${MSG} Then go here - https://portal.azure.com - to populate KeyVault Manager with Github Token. Save it as a gh-token."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+      - name: Check if any pipeline in the repository
+        run: |
+          if [ -n "$(find src/template_pipelines/config -name 'pipeline_*' -print -quit)" ]; then
+            echo "Pipeline found."
+          else
+              MSG="No pipeline found in src/template_pipelines/config."
+              MSG="${MSG} To download opinionated pipeline use PyrogAI command:"
+              echo "::error::${MSG}"
+              echo -e "${GREEN}aif pipeline from-template --pipe-name ml_iris --config-module template_pipelines.config"
+          fi
+      - name: PLACEHOLDER_PRE_INSTALL_START
+        run: |
+          echo "If you need to update steps which happens before any installs, add your steps after this one"
+
+      - name: Add custom requirements.txt files to be installed in addition to the standard ones
+        run: |
+          # Set it to something like PYROGAI_EXTRA_REQUIREMENTS='requirements-this.txt requirements-that.txt'
+          # Keep in mind that requirements.txt and requirements-devel.txt are already installed by default
+          echo "PYROGAI_EXTRA_REQUIREMENTS=" >> "$GITHUB_ENV"
+
+      - name: PLACEHOLDER_PRE_INSTALL_END
+        run: |
+          echo "If you need to update steps which happens before any installs, add your steps before this one"
+
+      # Enable Python
+      - name: Enable Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3.1.2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # The actions/setup-python action automatically deprecates an old patch version of Python as
+      # soon as a new one is released. So, 3.7.6 gets deprecated as soon as 3.7.7 is out. We can
+      # only specify major.minor in the setup, but we need to know the full version for the cache
+      - name: Retrieve exact Python minor version
+        id: get-exact-py-ver
+        run: echo "python-version=$(python -V | grep -oE '([0-9]+\.){2}[0-9]+' | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore venv from cache for Python ${{ steps.get-exact-py-ver.outputs.python-version }}
+        uses: actions/cache/restore@v3
+        id: cache-venv
+        with:
+          path: .venv
+          key: pg-cw-venv-new-${{ runner.os }}-py${{ steps.get-exact-py-ver.outputs.python-version }}-${{ hashFiles('requirements*.txt', 'pyproject.toml') }}
+
+      - name: Create venv and install Python Dependencies
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          set -e
+          pip install -U pip
+          pip install uv
+          uv pip install -e .
+
+      - name: Save venv to cache
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          path: .venv
+          key: ${{ steps.cache-venv.outputs.cache-primary-key }}
+
+      - name: Define ANSI colors for nice console prints
+        run: |
+          echo "BLACK=\033[0;30m" >> "$GITHUB_ENV"
+          echo "RED=\033[0;31m" >> "$GITHUB_ENV"
+          echo "GREEN=\033[0;32m" >> "$GITHUB_ENV"
+          echo "YELLOW=\033[0;33m" >> "$GITHUB_ENV"
+
+      - name: PLACEHOLDER_PRE_PIPELINE_START
+        run: |
+          echo "If you need to update steps which happens before any pipeline runs, add your steps after this one"
+
+      - name: PLACEHOLDER_PRE_PIPELINE_END
+        run: |
+          echo "If you need to update steps which happens before any pipeline runs, add your steps before this one"
+
+      - name: Validate USER_GITHUB_TOKEN token
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $USER_GITHUB_TOKEN ]]; then
+              echo "::error::`USER_GITHUB_TOKEN` not found. Please set this secret in github."
+              exit 1
+          fi
+
+          scopes=$(curl -sS -f -I -H "Authorization: token ${USER_GITHUB_TOKEN}" https://api.github.com | grep ^x-oauth-scopes: | cut -d' ' -f2- | tr -d "[:space:]" | tr ',' '\n')
+          if [ $? -ne 0 ]; then
+              echo "::error::failed to retrieve scope of USER_GITHUB_TOKEN."
+              exit 1
+          fi
+
+          if ! [[ $scopes == *"repo"* ]] || ! [[ $scopes == *"workflow"* ]]; then
+              MSG='USER_GITHUB_TOKEN should have 'repo + workflow' scope. Either 'repo' or 'workflow' (or both) are not in the scopes.'
+              MSG="${MSG} To update scope, open github profile -> go to `Developer Settings` -> select `personal access tokens` -> click on `Tokens` -> "
+              MSG="${MSG} click on token name you want to update -> select scopes -> click on `update token` button."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+          exp_date=$(curl -sS -f -I -H "Authorization: token ${USER_GITHUB_TOKEN}" https://api.github.com | grep ^github-authentication-token-expiration: | cut -d' ' -f2-)
+          if [ $? -ne 0 ]; then
+              echo "::error::failed to retrieve expiration date of USER_GITHUB_TOKEN."
+              exit 1
+          fi
+          if [ $exp_date ]; then
+            exp_timestamp=$(date -d "$exp_date" +%s)
+            current_timestamp=$(date +%s)
+            if [ "$exp_timestamp" -le "$current_timestamp" ]; then
+                MSG='USER_GITHUB_TOKEN has been expired. kindly update this token.'
+                echo "::error::${MSG}"
+                exit 1
+            fi
+          fi
+
+          repos=(curl -L -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${USER_GITHUB_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/orgs/procter-gamble/repos)
+          if [ ${#repos[@]} -eq 0 ]; then
+            MSG="SSO is not configured for `USER_GITHUB_TOKEN`. To configure the SSO, open github profile -> go to `Developer Settings` -> select `personal access tokens` -> click on `Tokens` -> "
+            MSG="${MSG} click on `Configure SSO` (present right of your token name) -> click on the organization name"
+            echo "::error::${MSG}"
+            exit 1
+          fi
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: pipelines_artifact
+          path: pipeline_artifact_path/${{ github.head_ref }}
+
+      - name: Display structure of downloaded files
+        run: |
+          ls pipeline_artifact_path -R
+
+      - name: Run pyrogai commands
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_BRANCH: ${{ github.head_ref }}
+          GH_REF: ${{ steps.set_params.outputs.sha }}
+          AZURE_TENANT_ID: "3596192b-fdf5-4e2c-a6fa-acb706c963d8"
+          AZURE_CLIENT_ID: ${{ secrets.AML_APP_SP_ID_PROD }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AML_APP_SP_SECRET_PROD }}
+        run: |
+          source .venv/bin/activate
+          # aif secret add --config-module template_pipelines.config \
+          # --secret gh_token --environment dev --value ${{ secrets.USER_GITHUB_TOKEN }}
+          # aif secret upload --config-module template_pipelines.config --platform AML --environment dev
+
+          echo "Filepath: ${{ inputs.pipelines_filepath }}"
+          cd pipeline_artifact_path/${{ github.head_ref }}
+          pipelines=$(<pipelines.txt)
+          pipelines=$(echo "$pipelines" | paste -sd, -)
+          echo "Pipelines variable: $pipelines"
+          if [[ -n "${pipelines}" ]]; then
+            # Remove leading/trailing whitespace and newlines
+            pipelines=$(echo "$pipelines" | awk '{$1=$1};1' | awk NF)
+            IFS=$',' read -ra DIRS <<< "$pipelines"
+              if [[ "${#DIRS[@]}" -eq 0 ]]; then
+                echo "No pipelines found in the variable."
+              else
+                for ITEM in "${DIRS[@]}"; do
+                  echo "Running Pipeline $ITEM."
+                  aif pipeline run --environment dev --platform AML --github-deployments --pipelines $ITEM --config-module template_pipelines.config
+                  echo -e "\nPipeline run for $ITEM finished.\n"
+                  
+                  if [[ "${ITEM}" == "optimization" ]]; then
+                    echo "Running optimization integration test pipelines."
+                    aif pipeline run --environment dev --platform AML --github-deployments --pipelines optimization_integrationtest --scope integrationtest_20stocks --config-module template_pipelines.tests.steps.optimization.config --debug
+                    aif pipeline run --environment dev --platform AML --github-deployments --pipelines optimization_integrationtest --scope integrationtest_20stocksB --config-module template_pipelines.tests.steps.optimization.config --debug
+                    echo "\nOptimization integration tests running finished.\n"
+                  fi
+                done
+              fi
+          else
+            echo "Pipelines variable is empty. "
+          fi
+
+      - name: PLACEHOLDER_POST_PIPELINE_START
+        run: |
+          echo "If you need to update steps which happens after any pipeline runs, add your steps after this one"
+
+      - name: PLACEHOLDER_POST_PIPELINE_END
+        run: |
+          echo "If you need to update steps which happens after any pipeline runs, add your steps before this one"

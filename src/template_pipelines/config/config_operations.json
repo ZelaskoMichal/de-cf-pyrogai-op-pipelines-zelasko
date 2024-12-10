@@ -1,0 +1,25 @@
+{
+    "operations": {
+    },
+    "notification_handlers": [
+        {
+            "notification_type": "email",
+            "notify_on": [
+                "error"
+            ],
+            "template": "notification_ops_email_template.html.j2",
+            "recipients": [
+                "utracki.m@pg.com"
+            ],
+            "subject": "[PyrogAI-{{step.environment.value}}] [{{step.status.value|upper}}] Test ops pipeline for scope:  '{{step.scope}}'",
+            "smtp": {
+                "server_address": "smtp.office365.com",
+                "port": 587,
+                "start_tls": true,
+                "user": "aifcse.im@pg.com",
+                "password_secret_name": "SHAREPOINT_APP_PASSWORD"
+            },
+            "dry_run": true
+        }
+    ]
+}

@@ -1,0 +1,57 @@
+compute: small
+description: Run your first pipeline with CRUNCH step
+experiment: crunch_tutorial
+name: crunch_tutorial
+runtime: runtime_crunch_tutorial
+platforms:
+  # Note that only AML, DBR and Local platforms are supported by CRUNCH steps
+  - AML
+  - Local
+  - DBR
+
+scope: crunch-tutorial
+
+params:
+  # Runtime parameters are available in CRUNCH steps
+  my_runtime_param: 43
+
+input_output_slots:
+-   name: sales_data
+    type: cloudfile
+    is_dir: true
+    url: abfss://azureml-adls-fs@{config.crunch_tutorial_storage_account}.dfs.core.windows.net/crunch_tutorial/runs/{run_id}/INPUT_DATA/
+
+-   name: sales_data_output
+    type: cloudfile
+    is_dir: true
+    url: abfss://azureml-adls-fs@{config.crunch_tutorial_storage_account}.dfs.core.windows.net/crunch_tutorial/runs/{run_id}/OUTPUT_DATA/
+
+
+steps:
+  -   class: template_pipelines.steps.crunch_tutorial.generate_crunch_inputs:GenerateCrunchInputs
+      # Generates tutorial data and uploads them to the 'sales_data' slot
+      name: generate_crunch_inputs
+      outputs:
+        - sales_data
+
+  -   class: template_pipelines.steps.crunch_tutorial.tutorial_crunch_step:TutorialCrunchStep
+      # Lists subdirectories in the 'sales_data' slot, defines as many CRUNCH jobs as there are subdirectories.
+      # Subsequently, submits all jobs as a single batch to CRUNCH and waits for them to complete.
+      # The jobs are running in parallel in CRUNCH AKS cluster.
+      # The PyrogAI platform/provider only submits the batch and monitors its status via CRUNCH API.
+      name: run_crunch_tutorial
+      run_after:
+        - generate_crunch_inputs
+      inputs:
+        - sales_data
+      outputs:
+        - sales_data_output
+
+  -   class: template_pipelines.steps.crunch_tutorial.validate_crunch_outputs:ValidateCrunchOutputs
+      # Reads the 'sales_data_output' slot and validates that CRUNCH has written expected outputs
+      name: validate_crunch_outputs
+      run_after:
+        - run_crunch_tutorial
+      inputs:
+        - sales_data_output
+

@@ -1,0 +1,8 @@
+{
+    "L3_integration_test": true,
+    
+    "data_dir": "test_data/L3_integration_test",
+    "integration_test_auxiliary_data_dir": "test_data/L3_integration_test",
+
+    "objfn_value_tol": 0.01
+}

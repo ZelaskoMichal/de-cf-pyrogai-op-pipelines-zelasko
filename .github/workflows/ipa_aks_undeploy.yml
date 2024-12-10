@@ -1,0 +1,78 @@
+name: Undeploy IPA from AKS
+
+# This is the only part that requires configuration
+env:
+  # This repository's branch that will be monitored by Flux for deployments (we'll write our deployments there)
+  FLUX_BRANCH: 'fluxcd-deployment-prod'
+  # What is the Python version we use
+  PYTHON_VERSION: '3.9'
+
+
+on:
+  pull_request:
+    types:
+    - closed  # when PRs are closed or merged
+  schedule:
+  - cron: "4 */2 * * *"  # at minute 4 past every 2nd hour
+
+jobs:
+
+  ipa_undeploy:
+
+    # Undeploying from AKS is *disabled* by default through the `if: false` statement below.
+    # Change `false` to `true` if you want to enable AKS undeployments
+    if: false
+
+    runs-on: ubuntu-latest  # does not need self-hosted if just removing files from Flux branch
+
+    steps:
+
+    - name: Checkout full repo for utilities
+      uses: actions/checkout@v4
+      with:
+        path: pyrogai
+
+    - name: Checkout relevant Flux branch - ${{ env.FLUX_BRANCH }}
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ env.FLUX_BRANCH }}
+        path: flux
+
+    - name: Remove YAML chart from the Flux-monitored branch - ${{ env.FLUX_BRANCH }}
+      env:
+        # This is required by the add/remove script
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # This is required by the `gh` executable from GitHub
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      working-directory: flux
+      run: |
+        set -e
+        set -o pipefail
+        git config --local user.email 'action@github.com'
+        git config --local user.name 'GitHub Action'
+        ls -l
+        ERR=0
+        for YML in *pr*.y*; do
+          if [[ $YML =~ pr([0-9]+)\.ya?ml ]]; then
+            PRNUM=${BASH_REMATCH[1]}
+            echo "Processing Flux file $YML, corresponding to Pull Request ${PRNUM} - is it open?"
+            set -x
+            STATE=$(gh api repos/${{ github.repository }}/pulls/${PRNUM} | jq -r .state)
+            set +x
+            if [[ $STATE == open ]]; then
+              echo "Pull Request ${PRNUM} is open - no action"
+            elif [[ $STATE == closed ]]; then
+              echo "Pull Request ${PRNUM} is closed - removing Flux deployment"
+              set -x
+              bash ../pyrogai/deployment/git-add-rm-commit-push.sh rm "$YML" "$FLUX_BRANCH" https://github.com/${{github.organization}}/${{github.repository}}
+              set +x
+            else
+              echo "::error::Cannot retrieve the state of Pull Request ${PRNUM}"
+              ERR=1
+            fi
+          fi
+        done
+        if [[ $ERR != 0 ]]; then
+          exit 1
+        fi
+

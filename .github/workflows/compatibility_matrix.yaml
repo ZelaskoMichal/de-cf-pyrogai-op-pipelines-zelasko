@@ -1,0 +1,150 @@
+name: Check compabitility between pyrogAI and template-ppls
+
+on:
+  schedule:
+  # Starts at 00:00 on the 1st and 15th of each month
+   - cron: "0 0 1,15 * *"
+
+jobs:
+  prepare-matrix-and-data:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      tags: ${{ steps.get-all-tpt_tags.outputs.tpt_tags }}
+    steps:
+      - name: Fetch non-prerelease release names in JSON, excluding 'pyrogai'
+        id: get-releases
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          # This script fetches the latest three stable release from the GitHub API. 
+          # It filters out prereleases and releases not containing 'pyrogai' in their name (case-insensitive), 
+          # then extracts only the names of the first three valid releases.
+          PYROGAI_RELEASES_JSON=$(curl -s -H "Authorization: token $USER_GITHUB_TOKEN" \
+          "https://api.github.com/repos/procter-gamble/de-cf-pyrogai/releases" | \
+          jq -r '.[] | select(.prerelease == false and (.name | ascii_downcase | contains("pyrogai") | not)) | .name' | \
+          jq -s -R -c 'split("\n")[:-1] | .[0:3]')
+
+          # Escape special characters in JSON string
+          PYROGAI_RELEASES_JSON=$(echo "$PYROGAI_RELEASES_JSON" | sed 's/"/\\&/g')
+
+          echo "::set-output name=releases::$PYROGAI_RELEASES_JSON"
+          echo $PYROGAI_RELEASES_JSON
+
+      - name: Fetch all release tags from de-cf-pyrogai-op-pipelines
+        id: get-all-tpt_tags
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+        run: |
+          # Fetch all release names from the TPT repo on GitHub.
+          # This command retrieves the release information, extracts the names, and removes the last empty element caused by splitting on newline.
+          TPT_RELEASES_JSON=$(curl -s -H "Authorization: token $USER_GITHUB_TOKEN" \
+            "https://api.github.com/repos/procter-gamble/de-cf-pyrogai-op-pipelines/releases" | \
+            jq -r '.[] | .name' | jq -s -R -c 'split("\n")[:-1]')
+          # Store the fetched release names for later use
+          TPT_RELEASES_JSON=$(echo "$TPT_RELEASES_JSON")
+          echo "::set-output name=tpt_tags::$TPT_RELEASES_JSON"
+          echo $TPT_RELEASES_JSON
+
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          MATRIX="{\"python-version\": [\"3.9\"], \"pyrogai-version\": ${{ steps.get-releases.outputs.releases }}, \"pipeline-name\": [\"ml_skeleton\", \"ml_iris\", \"ml_observability\", \"upload_data\", \"ml_training\"]}"
+          echo "Matrix: $MATRIX"
+          echo "::set-output name=matrix::$MATRIX"
+  check:
+    needs: prepare-matrix-and-data
+    name: Compatibility checks
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix: ${{fromJson(needs.prepare-matrix-and-data.outputs.matrix)}}
+    steps:
+      - name: Dump event JSON and environment
+        run: cat "$GITHUB_EVENT_PATH"; env
+
+      - name: Check if secret PG_DNA_GITHUB_TOKEN is available
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          if [[ ! $PG_DNA_GITHUB_TOKEN ]]; then
+              MSG='Secret `PG_DNA_GITHUB_TOKEN` was not found.'
+              MSG="${MSG} It should be an Organization Secret with scopes \`repo:*\` and"
+              MSG="${MSG} \`packages:read\`, and \`Enable SSO\` should be done too."
+              MSG="${MSG} Go here - https://github.com/settings/tokens - to create a Personal Access Token."
+              MSG="${MSG} See https://github.com/procter-gamble/de-cf-cw for more information."
+              echo "::error::${MSG}"
+              exit 1
+          fi
+
+      - name: Configure PG_DNA_GITHUB_TOKEN as default git token on github.com/procter-gamble only
+        env:
+          PG_DNA_GITHUB_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global credential.https://github.com/procter-gamble/.helper "! f() { echo username=pgcw; echo password=$PG_DNA_GITHUB_TOKEN; }; f"
+          echo '::warning::Using PG_DNA_GITHUB_TOKEN for git operations on github.com/procter-gamble'
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+        # Enable Python
+      - name: Enable Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4.7.1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Upgrade pip
+        run: |
+          pip install --upgrade pip
+          pip install uv
+          uv pip install --system -e . --no-deps
+          uv pip install --system -r requirements-compatibility-matrix.txt
+
+      - name: Run compatibility matrix script
+        env:
+          USER_GITHUB_TOKEN: ${{ secrets.USER_GITHUB_TOKEN  }}
+          PYROGAI_VERSION: ${{ matrix.pyrogai-version }}
+          PIPELINE_NAME: ${{ matrix.pipeline-name }}
+          TPT_TAGS: ${{ needs.prepare-matrix-and-data.outputs.tags }}
+        run: python src/template_pipelines/tests/compatibility_matrix/main.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: result-${{ matrix.pyrogai-version }}-${{ matrix.pipeline-name }}
+          path: matrix_result.json
+          retention-days: 1
+  collect_artifacts_and_create_PR:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: List Artifacts
+        run: ls -la artifacts
+
+      - name: Combine Artifacts
+        env:
+          ARTIFACTS_PATH: artifacts
+        run: python src/template_pipelines/tests/compatibility_matrix/combine_artifacts.py
+
+      - name: Remove Artifacts Folder
+        run: rm -rf artifacts
+
+      - name: Set Branch Suffix
+        run: echo "BRANCH_SUFFIX=$(date +'%Y%m%d-%H%M')" >> $GITHUB_ENV
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.USER_GITHUB_TOKEN }}
+          commit-message: "Update compatibility matrix"
+          title: "AUTO-Update compatibility matrix"
+          body: "This PR (AUTO-CREATED USING GH WORKFLOW) updates the compatibility matrix."
+          branch: fix/update-compatibility-matrix-${{ env.BRANCH_SUFFIX }}
+          base: main

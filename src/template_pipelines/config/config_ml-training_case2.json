@@ -1,0 +1,12 @@
+{
+    "ml_training": {
+        "random_state": 50,
+        "target": "redemption_status",
+        "learning_rate": 0.015,
+        "stop_learning": 5,
+        "epochs": 10,
+        "batch_size": 512,
+        "min_tp": 3,
+        "data_dir": "CouponDataTest"
+    }
+}

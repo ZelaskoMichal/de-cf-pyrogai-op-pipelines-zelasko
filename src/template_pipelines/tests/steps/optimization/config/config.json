@@ -1,0 +1,433 @@
+{
+    "data_dir": "data/StockPortfolioData",
+    "sdm_tmp_dir": "sdm",
+    "solution_tmp_dir": "solution",
+    "input_tmp_dir": "input",
+    "output_tmp_dir": "output",
+    "output_dir": "data/output",
+    "optimization": {
+        "formulate_and_solve": {
+            "fall_back_to_community_license": true,
+            "license_secret_name": "",
+            "continue_pipeline_on_bad_solution": false,
+            "xp_stop_error_codes": [
+                "GLOBALERROR",
+                "MEMORYERROR",
+                "LICENSELOST",
+                "NUMERICALERROR"
+            ],
+            "xp_solution_error_codes": [
+                "INFEASIBLE",
+                "UNBOUNDED",
+                "NOTFOUND"
+            ],
+            "autolog_metrics": true,
+            "autolog_metrics_level": "pipeline"
+        }
+    },
+    "dq_warnings_logger_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "great_expectations": {
+        "suites": {
+            "industries.critical": {
+                "file": "{config.input_tmp_dir}/industries.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_table_columns_to_match_set",
+                        "kwargs": {
+                            "column_set": [
+                                "industry",
+                                "avg_return"
+                            ]
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_table_row_count_to_be_between",
+                        "kwargs": {
+                            "min_value": 1,
+                            "max_value": 200
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "industry"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_unique",
+                        "kwargs": {
+                            "column": "industry"
+                        }
+                    }
+                ]
+            },
+            "industries.warning": {
+                "file": "{config.input_tmp_dir}/industries.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "avg_return"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "avg_return",
+                            "min_value": 0.2,
+                            "max_value": 50
+                        }
+                    }
+                ]
+            },
+            "regions.critical": {
+                "file": "{config.input_tmp_dir}/regions.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_table_columns_to_match_set",
+                        "kwargs": {
+                            "column_set": [
+                                "region",
+                                "region_index"
+                            ]
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_table_row_count_to_be_between",
+                        "kwargs": {
+                            "min_value": 1,
+                            "max_value": 10
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "region"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_unique",
+                        "kwargs": {
+                            "column": "region"
+                        }
+                    }
+                ]
+            },
+            "regions.warning": {
+                "file": "{config.input_tmp_dir}/regions.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "region_index"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "region_index",
+                            "min_value": 0.1,
+                            "max_value": 5
+                        }
+                    }
+                ]
+            },
+            "stocks.critical": {
+                "file": "{config.input_tmp_dir}/stocks.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_table_columns_to_match_set",
+                        "kwargs": {
+                            "column_set": [
+                                "name",
+                                "is_risky",
+                                "region",
+                                "industry"
+                            ]
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_table_row_count_to_be_between",
+                        "kwargs": {
+                            "min_value": 2,
+                            "max_value": 200
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "name"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_unique",
+                        "kwargs": {
+                            "column": "name"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "region"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "industry"
+                        }
+                    }
+                ]
+            },
+            "stocks.warning": {
+                "file": "{config.input_tmp_dir}/stocks.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "is_risky"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_distinct_values_to_equal_set",
+                        "kwargs": {
+                            "column": "is_risky",
+                            "value_set": [
+                                0,
+                                1
+                            ]
+                        }
+                    }
+                ]
+            },
+            "portfolio_stocks.critical": {
+                "file": "{config.sdm_tmp_dir}/portfolio_stocks.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_table_columns_to_match_set",
+                        "kwargs": {
+                            "column_set": [
+                                "name",
+                                "expected_return",
+                                "is_risky",
+                                "region"
+                            ]
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_table_row_count_to_be_between",
+                        "kwargs": {
+                            "min_value": 2,
+                            "max_value": 200
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "name"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "expected_return"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "is_risky"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "region"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_unique",
+                        "kwargs": {
+                            "column": "name"
+                        }
+                    }
+                ]
+            },
+            "portfolio_stocks.warning": {
+                "file": "{config.sdm_tmp_dir}/portfolio_stocks.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_min_to_be_between",
+                        "kwargs": {
+                            "column": "expected_return",
+                            "min_value": 0.2,
+                            "max_value": 20
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_max_to_be_between",
+                        "kwargs": {
+                            "column": "expected_return",
+                            "min_value": 3,
+                            "max_value": 50
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_distinct_values_to_be_in_set",
+                        "kwargs": {
+                            "column": "is_risky",
+                            "value_set": [
+                                0,
+                                1
+                            ]
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_unique_value_count_to_be_between",
+                        "kwargs": {
+                            "column": "region",
+                            "min_value": 2,
+                            "max_value": 10
+                        }
+                    }
+                ]
+            },
+            "fraction.critical": {
+                "file": "{config.solution_tmp_dir}/fraction.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_sum_to_be_between",
+                        "kwargs": {
+                            "column": "fraction",
+                            "min_value": 1,
+                            "max_value": 1
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "fraction",
+                            "min_value": 0,
+                            "max_value": 1
+                        }
+                    }
+                ]
+            },
+            "output.critical": {
+                "file": "{config.output_tmp_dir}/output.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_table_columns_to_match_set",
+                        "kwargs": {
+                            "column_set": [
+                                "name",
+                                "region",
+                                "industry",
+                                "is_risky",
+                                "expected_return",
+                                "industry average",
+                                "region_index",
+                                "recommended portfolio percent"
+                            ]
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "name"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_unique",
+                        "kwargs": {
+                            "column": "name"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_not_be_null",
+                        "kwargs": {
+                            "column": "recommended portfolio percent"
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_min_to_be_between",
+                        "kwargs": {
+                            "column": "recommended portfolio percent",
+                            "min_value": 0,
+                            "strict_min ": 1
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_sum_to_be_between",
+                        "kwargs": {
+                            "column": "recommended portfolio percent",
+                            "min": 100,
+                            "max": 100
+                        }
+                    },
+                    {
+                        "expectation_type": "expect_column_values_to_be_in_type_list",
+                        "kwargs": {
+                            "column": "recommended portfolio percent",
+                            "type_list": [
+                                "short",
+                                "ushort",
+                                "intc",
+                                "uintc",
+                                "int_",
+                                "longlong",
+                                "ulonglong",
+                                "half",
+                                "float16",
+                                "single",
+                                "double",
+                                "longdouble",
+                                "int",
+                                "float"
+                            ]
+                        }
+                    }
+                ]
+            },
+            "output.warning": {
+                "file": "{config.output_tmp_dir}/output.parquet",
+                "expectations": [
+                    {
+                        "expectation_type": "expect_column_values_to_be_between",
+                        "kwargs": {
+                            "column": "recommended portfolio percent",
+                            "min_value": 10,
+                            "max_value": 100
+                        }
+                    }
+                ]
+            }
+        },
+        "steps": {
+            "upload_data_validation": [
+                "industries.critical",
+                "regions.critical",
+                "stocks.critical"
+            ],
+            "input_dq": [
+                "industries.critical",
+                "industries.warning",
+                "regions.critical",
+                "regions.warning",
+                "stocks.critical",
+                "stocks.warning"
+            ],
+            "preprocessed_dq": [
+                "portfolio_stocks.critical",
+                "portfolio_stocks.warning"
+            ],
+            "solution_dq": [
+                "fraction.critical"
+            ],
+            "output_dq_with_save_to_ioslots": [
+                "output.critical",
+                "output.warning"
+            ]
+        }
+    }
+}
