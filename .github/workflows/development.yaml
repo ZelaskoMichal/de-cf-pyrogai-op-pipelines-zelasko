@@ -110,7 +110,7 @@ jobs:
     steps:
       - name: Echo AML
         run: |
-          echo -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt'
+          echo ${-f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt'}
           echo 'AML'
   call-dbr:
     name: Run DBR Development
@@ -120,7 +120,7 @@ jobs:
     steps:
       - name: Echo DBR
         run: |
-          echo -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt'
+          echo ${-f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt'}
           echo 'DBR'
   call-vertex:
     name: Run Vertex Development
@@ -130,5 +130,5 @@ jobs:
     steps:
       - name: Echo Vertex
         run: |
-          echo -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt'
+          echo ${-f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt'}
           echo 'Vertex'
