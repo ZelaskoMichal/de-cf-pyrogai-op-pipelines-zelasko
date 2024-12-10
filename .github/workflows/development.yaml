@@ -8,6 +8,10 @@ jobs:
   check-changed-directories:
     name: Check which pipeline files and directories changed
     runs-on: ubuntu-latest
+    outputs:
+      aml: ${{ steps.step1.outputs.AML }}
+      dbr: ${{ steps.step2.outputs.DBR }}
+      vertex: ${{ steps.step2.outputs.VERTEX }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -73,13 +77,19 @@ jobs:
             echo "${AMLS%?}" >> "$artifact_path/pipelines_AML.txt"
             echo "AML artifacts:"
             cat "$artifact_path/pipelines_AML.txt"
+            echo "AML=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "AML=false" >> "$GITHUB_OUTPUT"
           fi          
 
           if [ ! -z "$DBRS" -a "$DBRS" != " " -a "$DBRS" != "" ]; then
             echo "${DBRS%?}" >> "$artifact_path/pipelines_DBR.txt"
             echo "DBR artifacts:"
             cat "$artifact_path/pipelines_DBR.txt"
-          fi 
+            echo "DBR=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "DBR=false" >> "$GITHUB_OUTPUT"
+          fi  
 
           if [ ! -z "$LOCALS" -a "$LOCALS" != " " -a "$LOCALS" != "" ]; then
             echo "${LOCALS%?}" >> "$artifact_path/pipelines_LOCAL.txt"
@@ -91,9 +101,12 @@ jobs:
             echo "${VERTEXES%?}" >> "$artifact_path/pipelines_VERTEX.txt"
             echo "Vertex artifacts:"
             cat "$artifact_path/pipelines_VERTEX.txt"
+            echo "VERTEX=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERTEX=false" >> "$GITHUB_OUTPUT" 
           fi 
 
-          echo 'Ok'
+          echo "AML=hello" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -106,7 +119,7 @@ jobs:
     name: Run AML Development
     runs-on: ubuntu-latest
     needs: [check-changed-directories]
-    if: -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt'
+    if: ${{needs.check-changed-directories.outputs.aml}} == true
     steps:
       - name: Echo AML
         run: |
@@ -118,7 +131,7 @@ jobs:
     name: Run DBR Development
     runs-on: ubuntu-latest
     needs: [check-changed-directories]
-    if: -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt'
+    if: ${{needs.check-changed-directories.outputs.dbr}} == true
     steps:
       - name: Echo DBR
         run: |
@@ -130,7 +143,7 @@ jobs:
     name: Run Vertex Development
     runs-on: ubuntu-latest
     needs: [check-changed-directories]
-    if: -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt'
+    if: ${{needs.check-changed-directories.outputs.vertex}} == true
     steps:
       - name: Echo Vertex
         run: |
