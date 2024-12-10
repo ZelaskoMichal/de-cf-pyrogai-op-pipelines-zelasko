@@ -123,9 +123,7 @@ jobs:
     steps:
       - name: Echo AML
         run: |
-          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt' ]; then
-            echo 'true'
-          fi
+          echo ${{needs.check-changed-directories.outputs.aml}}
           echo 'AML'
   call-dbr:
     name: Run DBR Development
@@ -135,9 +133,7 @@ jobs:
     steps:
       - name: Echo DBR
         run: |
-          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt' ]; then
-            echo 'true'
-          fi
+          echo ${{needs.check-changed-directories.outputs.dbr}}
           echo 'DBR'
   call-vertex:
     name: Run Vertex Development
@@ -147,7 +143,5 @@ jobs:
     steps:
       - name: Echo Vertex
         run: |
-          if [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt' ]; then
-            echo 'true'
-          fi
+          echo ${{needs.check-changed-directories.outputs.vertex}}
           echo 'Vertex'
