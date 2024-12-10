@@ -106,7 +106,7 @@ jobs:
     name: Run AML Development
     runs-on: ubuntu-latest
     needs: [check-changed-directories]
-    if: -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt'
+    if: ${{ [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt' ] }}
     steps:
       - name: Echo AML
         run: echo 'AML'
