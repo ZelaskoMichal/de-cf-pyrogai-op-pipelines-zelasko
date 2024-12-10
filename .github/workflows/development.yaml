@@ -9,9 +9,9 @@ jobs:
     name: Check which pipeline files and directories changed
     runs-on: ubuntu-latest
     outputs:
-      aml: ${{ steps.step1.outputs.AML }}
-      dbr: ${{ steps.step2.outputs.DBR }}
-      vertex: ${{ steps.step2.outputs.VERTEX }}
+      aml: ${{ steps.get_labels.outputs.AML }}
+      dbr: ${{ steps.get_labels.outputs.DBR }}
+      vertex: ${{ steps.get_labels.outputs.VERTEX }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
