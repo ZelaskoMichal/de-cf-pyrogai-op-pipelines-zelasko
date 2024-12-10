@@ -1,0 +1,125 @@
+# Main controller for development run
+name: Deploy to Development Environment
+run-name: ${{ github.actor }} is running Development Deployment 🚀
+on:
+  workflow_dispatch:
+  workflow_call:
+jobs:
+  check-changed-directories:
+    name: Check which pipeline files and directories changed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Get PR labels
+        id: get_labels
+        env:
+          GH_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
+        run: |
+          PIPELINES_TO_RUN="ml_iris,bq_io,ml_training,ml_observability"
+
+          echo "Filtered Pipelines to Run: $PIPELINES_TO_RUN"
+
+          IFS=',' read -ra PIPELINES_LIST <<< "$PIPELINES_TO_RUN"
+
+          AMLS=""
+          DBRS=""
+          LOCALS=""
+          VERTEXES=""
+
+          for PIPELINE in "${PIPELINES_LIST[@]}"
+          do
+            INPUT_FILENAME="./src/template_pipelines/config/pipeline_${PIPELINE}.yml"
+            
+            EXTRACTING=false 
+            
+            while IFS= read -r line; 
+            do 
+              if [[ "$line" == *"platforms:"* ]]; then 
+                EXTRACTING=true 
+              elif [[ $EXTRACTING == true ]]; then
+                if [[ "$line" == *"-"* ]]; then 
+                  if echo "$line" | grep -q "AML"; then
+                    AMLS="$AMLS$PIPELINE,"
+                  elif echo "$line" | grep -q "DBR"; then
+                    DBRS="$DBRS$PIPELINE,"
+                  elif echo "$line" | grep -q "Local"; then
+                    LOCALS="$LOCALS$PIPELINE,"
+                  elif echo "$line" | grep -q "Vertex"; then
+                    VERTEXES="$VERTEXES$PIPELINE,"
+                  fi
+                fi
+              else 
+                EXTRACTING=false 
+              fi
+            done < "$INPUT_FILENAME"
+          done
+
+          echo $AMLS
+          echo $DBRS
+          echo $LOCALS
+          echo $VERTEXES
+
+          # Handle creation of new directory path for artifact
+          branch_name=${{ github.head_ref }}
+          artifact_path="pipeline_artifact_path/$branch_name"
+          mkdir -p "$artifact_path"
+          echo "$PIPELINES_TO_RUN" >> "$artifact_path/pipelines.txt"
+          cat "$artifact_path/pipelines.txt"
+
+          if [ ! -z "$AMLS" -a "$AMLS" != " " ]; then
+            echo "$AMLS%?" >> "$artifact_path/pipelines_AML.txt"
+            cat "$artifact_path/pipelines_AML.txt"
+          fi          
+
+          if [ ! -z "$DBRS" -a "$DBRS" != " " ]; then
+            echo "$DBRS%?" >> "$artifact_path/pipelines_DBR.txt"
+            cat "$artifact_path/pipelines_DBR.txt"
+          fi 
+
+          if [ ! -z "$LOCALS" -a "$LOCALS" != " " ]; then
+            echo "$LOCALS%?" >> "$artifact_path/pipelines_LOCAL.txt"
+            cat "$artifact_path/pipelines_LOCAL.txt"
+          fi 
+
+          if [ ! -z "$VERTEXES" -a "$VERTEXES" != " " ]; then
+            echo "$VERTEXES%?" >> "$artifact_path/pipelines_VERTEX.txt"
+            cat "$artifact_path/pipelines_VERTEX.txt"
+          fi 
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pipelines_artifact
+          path: pipeline_artifact_path/${{ github.head_ref }}
+          retention-days: 7
+
+  call-aml:
+    name: Run AML Development
+    needs: [check-changed-directories]
+    if: ${{ hashFiles('pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt') != '' }}
+    uses: ./.github/workflows/AML_development.yaml
+    with:
+      pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt
+      environment-name: "development"
+    secrets: inherit
+  call-dbr:
+    name: Run DBR Development
+    needs: [check-changed-directories]
+    if: ${{ hashFiles('pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt') != '' }}
+    uses: ./.github/workflows/DBR_development.yaml
+    with:
+      pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt
+      environment-name: "development"
+    secrets: inherit
+  call-vertex:
+    name: Run Vertex Development
+    needs: [check-changed-directories]
+    if: ${{ hashFiles('pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt') != '' }}
+    uses: ./.github/workflows/Vertex_development.yaml
+    with:
+      pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt
+      environment-name: "development"
+    secrets: inherit
