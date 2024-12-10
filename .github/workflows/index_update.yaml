@@ -24,4 +24,5 @@ jobs:
           
       - name: execute verification and update script # run file
         run: |
+          pwd
           python ./scripts/verify_update_index.py
