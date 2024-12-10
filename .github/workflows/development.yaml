@@ -57,10 +57,10 @@ jobs:
             done < "$INPUT_FILENAME"
           done
 
-          echo $AMLS
-          echo $DBRS
-          echo $LOCALS
-          echo $VERTEXES
+          echo "AML=$AMLS"
+          echo "DBR=$DBRS"
+          echo "LOCAL=$LOCALS"
+          echo "VERTEX=$VERTEXES"
 
           # Handle creation of new directory path for artifact
           branch_name=${{ github.head_ref }}
@@ -69,23 +69,27 @@ jobs:
           echo "$PIPELINES_TO_RUN" >> "$artifact_path/pipelines.txt"
           cat "$artifact_path/pipelines.txt"
 
-          if [ ! -z "$AMLS" -a "$AMLS" != " " ]; then
-            echo "$AMLS" >> "$artifact_path/pipelines_AML.txt"
+          if [ ! -z "$AMLS" -a "$AMLS" != " " -a "$AMLS" != "" ]; then
+            echo "${AMLS%?}" >> "$artifact_path/pipelines_AML.txt"
+            echo "AML artifacts:"
             cat "$artifact_path/pipelines_AML.txt"
           fi          
 
-          if [ ! -z "$DBRS" -a "$DBRS" != " " ]; then
-            echo "$DBRS" >> "$artifact_path/pipelines_DBR.txt"
+          if [ ! -z "$DBRS" -a "$DBRS" != " " -a "$DBRS" != "" ]; then
+            echo "${DBRS%?}" >> "$artifact_path/pipelines_DBR.txt"
+            echo "DBR artifacts:"
             cat "$artifact_path/pipelines_DBR.txt"
           fi 
 
-          if [ ! -z "$LOCALS" -a "$LOCALS" != " " ]; then
-            echo "$LOCALS" >> "$artifact_path/pipelines_LOCAL.txt"
+          if [ ! -z "$LOCALS" -a "$LOCALS" != " " -a "$LOCALS" != "" ]; then
+            echo "${LOCALS%?}" >> "$artifact_path/pipelines_LOCAL.txt"
+            echo "Local artifacts:"
             cat "$artifact_path/pipelines_LOCAL.txt"
           fi 
 
-          if [ ! -z "$VERTEXES" -a "$VERTEXES" != " " ]; then
-            echo "$VERTEXES" >> "$artifact_path/pipelines_VERTEX.txt"
+          if [ ! -z "$VERTEXES" -a "$VERTEXES" != " "  -a "$VERTEXES" != "" ]; then
+            echo "${VERTEXES%?}" >> "$artifact_path/pipelines_VERTEX.txt"
+            echo "Vertex artifacts:"
             cat "$artifact_path/pipelines_VERTEX.txt"
           fi 
 
