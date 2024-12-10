@@ -18,14 +18,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PG_DNA_GITHUB_TOKEN }}
         run: |
-          LABEL_JSON=$(gh api \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          /repos/procter-gamble/de-cf-pyrogai-op-pipelines/issues/${{ github.event.number }}/labels)
-
-          echo $LABEL_JSON | jq -r '.[] | select(.name | test("github_actions|tests"; "i") | not) | .name' > labels.txt
-          jq -r '.pipelines[].name' "index.json" > pipelines.txt
-          PIPELINES_TO_RUN=$(sort labels.txt pipelines.txt | uniq -d | paste -sd ',')
+          PIPELINES_TO_RUN="hello_gen_ai,video_analysis,"
 
           echo "Filtered Pipelines to Run: $PIPELINES_TO_RUN"
 
