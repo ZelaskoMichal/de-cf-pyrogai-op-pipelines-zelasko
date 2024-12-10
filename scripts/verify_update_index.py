@@ -7,21 +7,21 @@ from os.path import isfile, join
 
 import re
 
-def list_files_in_dir(path: str = "../src/template_pipelines/config/") -> list[str]:
+def list_files_in_dir(path: str = "./src/template_pipelines/config/") -> list[str]:
     return [f for f in listdir(path) if isfile(join(path, f))]
 
-def load_json(index_path: str = "../index.json") -> dict:
+def load_json(index_path: str = "./index.json") -> dict:
     index_file = open(file=index_path, mode="r")
     return json.load(fp=index_file)
 
-def open_new_index_file(index_path: str = "index.json"):
+def open_new_index_file(index_path: str = "./index.json"):
     new_index_path = index_path[:-5] + "_new" + index_path[-5:]
     return open(file=new_index_path, mode="w")
 
 def verify_filename(file: str) -> bool:
     return file.startswith("pipeline_") and file.endswith(".yml")
 
-def load_config_data(file: str, path: str = "../src/template_pipelines/config/") -> dict:
+def load_config_data(file: str, path: str = "./src/template_pipelines/config/") -> dict:
     config_path = path + file
     config_file = open(file=config_path, mode="r")
     return yaml.safe_load(stream=config_file)
@@ -48,7 +48,7 @@ def parse_pipeline_config(pipelines_index: dict, pipeline_name: str, config_plat
         missing_info = [pipeline_name]
     return missing_info, missmatch_info
 
-def verify_file(file: str, missing_pipelines: list, platform_missmatching_pipelines: list, index_json: dict, pipelines_index: dict, path: str = "../src/template_pipelines/config/") -> tuple[list, list, dict]:
+def verify_file(file: str, missing_pipelines: list, platform_missmatching_pipelines: list, index_json: dict, pipelines_index: dict, path: str = "./src/template_pipelines/config/") -> tuple[list, list, dict]:
     if verify_filename(file):
         config_data = load_config_data(file=file, path=path)
         new_config_path = path + "new_" + file
@@ -73,7 +73,7 @@ def verify_file(file: str, missing_pipelines: list, platform_missmatching_pipeli
 
     return missing_pipelines, platform_missmatching_pipelines, index_json
 
-def verify_files(files_list: list[str], index_json: dict, path: str = "../src/template_pipelines/config/") -> list[str]:
+def verify_files(files_list: list[str], index_json: dict, path: str = "./src/template_pipelines/config/") -> list[str]:
     pipelines_index = index_json["pipelines"]
     missing_pipelines, platform_missmatching_pipelines = [], []
     for file in files_list:
@@ -123,7 +123,7 @@ def get_reaquirements_files(path: str, pipeline: str) -> list[str]:
 def get_uri(pipeline: str) -> str:
     return f"https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-{pipeline}"
 
-def create_pipeline_data(pipeline: str, pipeline_name: str, path: str = "../src/template_pipelines/config/"):
+def create_pipeline_data(pipeline: str, pipeline_name: str, path: str = "./src/template_pipelines/config/"):
     pipeline_data = load_config_data(file=pipeline_name, path=path)
     description = pipeline_data["description"]
     pipeline_index_data = dict()
@@ -134,8 +134,8 @@ def create_pipeline_data(pipeline: str, pipeline_name: str, path: str = "../src/
     pipeline_index_data["name"] = pipeline
     pipeline_index_data["path"] = path + pipeline_name
     pipeline_index_data["platforms"] = list(get_platforms(pipeline_data))
-    pipeline_index_data["readme_files"] = get_readme_files(path="../src/template_pipelines/", pipeline=pipeline)
-    pipeline_index_data["requirements_files"] = get_reaquirements_files(path="../src/template_pipelines/reqs/", pipeline=pipeline)
+    pipeline_index_data["readme_files"] = get_readme_files(path="./src/template_pipelines/", pipeline=pipeline)
+    pipeline_index_data["requirements_files"] = get_reaquirements_files(path="./src/template_pipelines/reqs/", pipeline=pipeline)
     pipeline_index_data["runtimes_mapping"] = None
     pipeline_index_data["tags"] = []
     pipeline_index_data["uri"] = get_uri(pipeline=pipeline)
@@ -175,7 +175,7 @@ def complete_guid(pipeline: str) -> None:
         json.dump(obj=index_json, fp=new_index_file, indent="  ")
         new_index_file.close()
 
-def complete_missing_pipelines(missing_pipelines: list, index_json: dict, path: str = "../src/template_pipelines/config/") -> None:
+def complete_missing_pipelines(missing_pipelines: list, index_json: dict, path: str = "./src/template_pipelines/config/") -> None:
     for pipeline in missing_pipelines:
         pipeline_name = "pipeline_" + pipeline + ".yml"
         
@@ -194,8 +194,8 @@ def complete_missing_pipelines(missing_pipelines: list, index_json: dict, path: 
 
 if __name__ == "__main__":
 
-    path = "../src/template_pipelines/config/"
-    index_path = "../index.json"
+    path = "./src/template_pipelines/config/"
+    index_path = "./index.json"
 
     files_list = list_files_in_dir(path=path)
     index_json = load_json(index_path=index_path)
