@@ -106,7 +106,7 @@ jobs:
   call-aml:
     name: Run AML Development
     needs: [check-changed-directories]
-    if: ${{ hashFiles('pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt') != '' }}
+    if: ${{ [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt') != '' ] }}
     uses: ./.github/workflows/AML_development.yaml
     with:
       pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt
@@ -115,7 +115,7 @@ jobs:
   call-dbr:
     name: Run DBR Development
     needs: [check-changed-directories]
-    if: ${{ hashFiles('pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt') != '' }}
+    if: ${{ [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt') != '' ] }}
     uses: ./.github/workflows/DBR_development.yaml
     with:
       pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt
@@ -124,7 +124,7 @@ jobs:
   call-vertex:
     name: Run Vertex Development
     needs: [check-changed-directories]
-    if: ${{ hashFiles('pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt') != '' }}
+    if: ${{ [ -f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt') != '' ] }}
     uses: ./.github/workflows/Vertex_development.yaml
     with:
       pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt
