@@ -105,28 +105,25 @@ jobs:
 
   call-aml:
     name: Run AML Development
+    runs-on: ubuntu-latest
     needs: [check-changed-directories]
     if: ${{-f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt'}}
-    uses: ./.github/workflows/AML_development.yaml
-    with:
-      pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_AML.txt
-      environment-name: "development"
-    secrets: inherit
+    steps:
+      - name: Echo AML
+        run: echo 'AML'
   call-dbr:
     name: Run DBR Development
+    runs-on: ubuntu-latest
     needs: [check-changed-directories]
     if: ${{-f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt'}}
-    uses: ./.github/workflows/DBR_development.yaml
-    with:
-      pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_DBR.txt
-      environment-name: "development"
-    secrets: inherit
+    steps:
+      - name: Echo DBR
+        run: echo 'DBR'
   call-vertex:
     name: Run Vertex Development
+    runs-on: ubuntu-latest
     needs: [check-changed-directories]
     if: ${{-f 'pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt'}}
-    uses: ./.github/workflows/Vertex_development.yaml
-    with:
-      pipelines_filepath: pipeline_artifact_path/${{ github.head_ref }}/pipelines_VERTEX.txt
-      environment-name: "development"
-    secrets: inherit
+    steps:
+      - name: Echo Vertex
+        run: echo 'Vertex'
