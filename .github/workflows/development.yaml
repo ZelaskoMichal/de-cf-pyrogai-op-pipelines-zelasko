@@ -96,6 +96,8 @@ jobs:
             cat "$artifact_path/pipelines_VERTEX.txt"
           fi 
 
+          echo 'Ok'
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
