@@ -1,14 +1,12 @@
 name: ml_iris
-description: Pipeline implementation of decision tree classifier with iris dataset
+description: Pipeline
 experiment: template
 runtime: runtime_ml_iris
 compute: small
 scope: ml-iris
 platforms:
   - Vertex
-  - DBR
   - AML
-  - Local
 
 steps:
   - name: generate_data
