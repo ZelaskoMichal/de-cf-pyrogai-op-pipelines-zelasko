@@ -33,12 +33,12 @@ jobs:
         run: git status
       - name: stage changed files
         run: git add index.json src/template_pipelines/config/pipeline_*.yml
-      - name: commit changed files
-        run: git commit -m "update pipelines"
       - name: authenticate
         run: |
           git config --global user.email ${{ secrets.mail }}
           git config --global user.name ${{ secrets.name }}
+      - name: commit changed files
+        run: git commit -m "update pipelines"
       - name: fetch from master
         run: git fetch origin master
       - name: push code to master
