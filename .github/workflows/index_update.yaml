@@ -26,3 +26,16 @@ jobs:
         run: |
           find . -maxdepth 3
           python ./scripts/verify_update_index.py
+
+      - name: add remote
+        run: git remote set-url origin ${{ secrets.ssh }}
+      - name: check for changes
+        run: git status
+      - name: stage changed files
+        run: git add index.json src/template_pipelines/config/pipeline_*.yml
+      - name: commit changed files
+        run: git commit -m "update pipelines"
+      - name: fetch from master
+        run: git fetch origin master
+      - name: push code to master
+        run: git push origin HEAD:master
