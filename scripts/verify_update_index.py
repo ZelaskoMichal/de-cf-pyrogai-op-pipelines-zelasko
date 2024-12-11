@@ -16,8 +16,7 @@ def load_json(index_path: str = "index.json") -> dict:
     return data
 
 def open_new_index_file(index_path: str = "index.json"):
-    new_index_path = index_path[:-5] + "_new" + index_path[-5:]
-    return open(file=new_index_path, mode="w")
+    return open(file=index_path, mode="w")
 
 def verify_filename(file: str) -> bool:
     return file.startswith("pipeline_") and file.endswith(".yml")
@@ -53,7 +52,7 @@ def parse_pipeline_config(pipelines_index: dict, pipeline_name: str, config_plat
 def verify_file(file: str, missing_pipelines: list, platform_missmatching_pipelines: list, index_json: dict, pipelines_index: dict, path: str = "./src/template_pipelines/config/") -> tuple[list, list, dict]:
     if verify_filename(file):
         config_data = load_config_data(file=file, path=path)
-        new_config_path = path + "new_" + file
+        new_config_path = path + file
         config_platforms = get_platforms(data=config_data)
         pipeline_name = extract_pipeline_name(file)
 
