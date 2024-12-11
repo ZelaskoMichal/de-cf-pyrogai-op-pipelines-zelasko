@@ -1,0 +1,727 @@
+{
+  "index_config": {
+    "config_module_name": "template_pipelines.config",
+    "config_module_path": "src/template_pipelines/config",
+    "index_file_name": "index.json",
+    "namespace_name": "template_pipelines",
+    "pyrogai_ver": "v1.5.1",
+    "readme_path": "src/template_pipelines",
+    "reqs_path": "src/template_pipelines/reqs",
+    "steps_module_name": "template_pipelines.steps",
+    "steps_path": "src/template_pipelines/steps",
+    "utils_model_path": "src/template_pipelines/model",
+    "utils_module_name": "template_pipelines.utils",
+    "utils_path": "src/template_pipelines/utils"
+  },
+  "models": {},
+  "pipelines": {
+    "aiapps_aml": {
+      "config_files": [
+        "src/template_pipelines/config/config_aiapps-aml.json"
+      ],
+      "desc": "Showcase ML pipeline with base steps. Customized to serve as a template for integration with the Config-YAML app and designed for execution on Azure ML.",
+      "guid": "f635ece4-4262-5972-bbf6-e5205c7b672e",
+      "include_utils": true,
+      "name": "aiapps_aml",
+      "path": "src/template_pipelines/config/pipeline_aiapps_aml.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_aiapps_aml.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_aiapps_aml.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-aiapps_aml",
+      "utils_paths": null
+    },
+    "aiapps_dbr": {
+      "config_files": [
+        "src/template_pipelines/config/config_aiapps-dbr.json"
+      ],
+      "desc": "Showcase ML pipeline with base steps. Customized to serve as a template for integration with the Config-YAML app and designed for execution on Databricks.",
+      "guid": "5ebdc101-aa02-57ef-9393-77786a090276",
+      "include_utils": true,
+      "name": "aiapps_dbr",
+      "path": "src/template_pipelines/config/pipeline_aiapps_dbr.yml",
+      "platforms": [
+        "DBR",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_aiapps_dbr.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_aiapps_dbr.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-aiapps_dbr",
+      "utils_paths": null
+    },
+    "aml_sweep": {
+      "config_files": [
+        "src/template_pipelines/config/config_aml-sweep.json"
+      ],
+      "desc": "Use AzureML-specific functionality (AmlSweepStep) for hyperparameter tuning.",
+      "guid": "5eaccb96-a46d-55a7-9b8b-7df6636e71bc",
+      "include_utils": true,
+      "name": "aml_sweep",
+      "path": "src/template_pipelines/config/pipeline_aml_sweep.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_aml_sweep.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_aml_sweep.txt"
+      ],
+      "runtimes_mapping": {},
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-aml_sweep",
+      "utils_paths": [
+        "src/template_pipelines/utils/aml_sweep"
+      ]
+    },
+    "blob_data": {
+      "config_files": [
+        "src/template_pipelines/config/config_blob-data.json"
+      ],
+      "desc": "This pipeline helps with getting data from Blob.",
+      "guid": "2ad59854-7e2c-5fb4-ab69-afdd2c3838b8",
+      "include_utils": false,
+      "name": "blob_data",
+      "path": "src/template_pipelines/config/pipeline_blob_data.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_blob_data.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_blob_data_local.txt",
+        "src/template_pipelines/reqs/requirements_blob_data_dbr.txt",
+        "src/template_pipelines/reqs/requirements_blob_data_aml.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-blob_data",
+      "utils_paths": []
+    },
+    "bq_io": {
+      "config_files": [
+        "src/template_pipelines/config/config_bq-io.json"
+      ],
+      "desc": "This pipeline demonstrates how use GCP Bigquery IO Slot.",
+      "guid": "6b226d82-028d-51e6-a12b-35bb76f3fbcc",
+      "include_utils": true,
+      "name": "bq_io",
+      "path": "src/template_pipelines/config/pipeline_bq_io.yml",
+      "platforms": [
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_bq_io.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_bq_io.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-bq_io",
+      "utils_paths": [
+        "src/template_pipelines/utils/bq_io"
+      ]
+    },
+    "crunch_tutorial": {
+      "config_files": [
+        "src/template_pipelines/config/config_crunch-tutorial.json"
+      ],
+      "desc": "Run your first pipeline with CRUNCH step",
+      "guid": "c1d3661c-8038-5b12-a188-609501c6216b",
+      "include_utils": true,
+      "name": "crunch_tutorial",
+      "path": "src/template_pipelines/config/pipeline_crunch_tutorial.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_crunch_tutorial.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_crunch_tutorial.txt"
+      ],
+      "runtimes_mapping": {
+        "runtime_crunch_tutorial": "src/template_pipelines/reqs/requirements_crunch_tutorial.txt"
+      },
+      "tags": null,
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-crunch_tutorial",
+      "utils_paths": [
+        "src/template_pipelines/utils/crunch_tutorial"
+      ]
+    },
+    "doc_vectorization": {
+      "config_files": [
+        "src/template_pipelines/config/config_doc-vectorization.json"
+      ],
+      "desc": "Demonstrates a simplied AskPG pipeline for preprocessing and vectorizing documents. Beta version",
+      "guid": "a6a8eff4-654e-5030-ae8a-de537ec3cba3",
+      "include_utils": true,
+      "name": "doc_vectorization",
+      "path": "src/template_pipelines/config/pipeline_doc_vectorization.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_doc_vectorization.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_doc_vectorization.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-doc_vectorization",
+      "utils_paths": [
+        "src/template_pipelines/utils/doc_vectorization"
+      ]
+    },
+    "gen_ai_product_opt": {
+      "config_files": [
+        "src/template_pipelines/config/config_gen-ai-product-opt.json"
+      ],
+      "desc": "Demonstrates a general Generative AI pipeline. Uses GenAI/OpenAI LLMs to improve product search visibility. Beta version",
+      "guid": "bb228032-fa1b-59d2-bfd7-9e04a7da2334",
+      "include_utils": true,
+      "name": "gen_ai_product_opt",
+      "path": "src/template_pipelines/config/pipeline_gen_ai_product_opt.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_gen_ai_product_opt.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_gen_ai_product_opt.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-gen_ai_product_opt",
+      "utils_paths": [
+        "src/template_pipelines/utils/gen_ai_product_opt"
+      ]
+    },
+    "gu_translation": {
+      "config_files": [
+        "src/template_pipelines/config/config_gu-translation.json"
+      ],
+      "desc": "Demonstrates a simplified Generative AI pipeline for text translation. Beta version",
+      "guid": "56209cc3-d815-5f19-a465-4b58e072f609",
+      "include_utils": true,
+      "name": "gu_translation",
+      "path": "src/template_pipelines/config/pipeline_gu_translation.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_gu_translation.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_gu_translation.txt"
+      ],
+      "runtimes_mapping": {
+        "runtime_gu_translation": "src/template_pipelines/reqs/requirements_gu_translation.txt"
+      },
+      "tags": null,
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-gu_translation",
+      "utils_paths": [
+        "src/template_pipelines/utils/gu_translation"
+      ]
+    },
+    "hello_gen_ai": {
+      "config_files": [
+        "src/template_pipelines/config/config_hello-gen-ai.json"
+      ],
+      "desc": "Gives a template pipeline with implemented functions for future develops using GenAI/OpenAI",
+      "guid": "47f92734-70a0-595a-a030-ed4e5a41e5ba",
+      "include_utils": true,
+      "name": "hello_gen_ai",
+      "path": "src/template_pipelines/config/pipeline_hello_gen_ai.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_hello_gen_ai.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_hello_gen_ai.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-hello_gen_ai",
+      "utils_paths": [
+        "src/template_pipelines/utils/hello_gen_ai"
+      ]
+    },
+    "mdf_iiot": {
+      "config_files": [
+        "src/template_pipelines/config/config_mdf-iiot.json",
+        "src/template_pipelines/config/model_set_mdf.yml",
+        "src/template_pipelines/config/model_backend_mdf.yml",
+        "src/template_pipelines/config/model_configuration_mdf.yml"
+      ],
+      "desc": "(BETA) A general demonstration use-case of the MDF IIOT Platform following features of the new IIOT Python Adapter Framework.",
+      "guid": "5e0f748f-a39b-5ca5-9dce-da11873a8e25",
+      "include_utils": true,
+      "name": "mdf_iiot",
+      "path": "src/template_pipelines/config/pipeline_mdf_iiot.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_mdf_iiot.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_mdf_iiot.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-mdf_iiot",
+      "utils_paths": [
+        "src/template_pipelines/utils/mdf_iiot"
+      ]
+    },
+    "ml_inference": {
+      "config_files": [
+        "src/template_pipelines/config/config_ml-inference.json"
+      ],
+      "desc": "This pipeline demonstrates how to read model from registry and run inference",
+      "guid": "d5b70291-f929-590b-8c18-4b06e383283e",
+      "include_utils": false,
+      "name": "ml_inference",
+      "path": "src/template_pipelines/config/pipeline_ml_inference.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_ml_inference.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_ml_inference.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-ml_inference",
+      "utils_paths": null
+    },
+    "ml_iris": {
+      "config_files": [
+        "src/template_pipelines/config/config_ml-iris.json"
+      ],
+      "desc": "Pipeline implementation of decision tree classifier with iris dataset",
+      "guid": "f97815b1-f1df-58d9-afdb-e15b14697238",
+      "include_utils": false,
+      "name": "ml_iris",
+      "path": "src/template_pipelines/config/pipeline_ml_iris.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_ml_iris.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_ml_iris.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-ml_iris",
+      "utils_paths": null
+    },
+    "ml_observability": {
+      "config_files": [
+        "src/template_pipelines/config/config_ml-observability.json"
+      ],
+      "desc": "Pipeline implementation demonstrating Observability",
+      "guid": "db97ad6b-1858-55a0-8b00-a3396d253d6d",
+      "include_utils": false,
+      "name": "ml_observability",
+      "path": "src/template_pipelines/config/pipeline_ml_observability.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": null,
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_ml_observability.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-ml_observability",
+      "utils_paths": null
+    },
+    "ml_skeleton": {
+      "config_files": [
+        "src/template_pipelines/config/config_ml-skeleton.json"
+      ],
+      "desc": "Empty ML training pipeline, using the same steps as the ml_training one. Useful for new ML projects, so that you do not have to start from a blank page.",
+      "guid": "eba19a52-93fe-550c-ac6f-ce4a56d4b712",
+      "include_utils": false,
+      "name": "ml_skeleton",
+      "path": "src/template_pipelines/config/pipeline_ml_skeleton.yml",
+      "platforms": [
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_ml_skeleton.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_ml_skeleton.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-ml_skeleton",
+      "utils_paths": null
+    },
+    "ml_training": {
+      "config_files": [
+        "src/template_pipelines/config/config_ml-training.json"
+      ],
+      "desc": "Demonstrates a typical ML training pipeline. Uses a coupon redemption data set and implements an anomaly detection via autoencoders approach",
+      "guid": "1e71cae7-8461-52df-beca-bdf992195547",
+      "include_utils": true,
+      "name": "ml_training",
+      "path": "src/template_pipelines/config/pipeline_ml_training.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_ml_training.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_ml_training.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-ml_training",
+      "utils_paths": [
+        "src/template_pipelines/utils/ml_training"
+      ]
+    },
+    "operations": {
+      "config_files": [
+        "src/template_pipelines/config/config_operations.json"
+      ],
+      "desc": "Demonstrates a general operations pipeline.",
+      "guid": "849c3dbd-bef1-511d-8221-3183dd8dfb11",
+      "include_utils": false,
+      "name": "operations",
+      "path": "src/template_pipelines/config/pipeline_operations.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_operations.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_operations.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-operations",
+      "utils_paths": null
+    },
+    "optimization": {
+      "config_files": [
+        "src/template_pipelines/config/config_optimization.json"
+      ],
+      "desc": "Demonstrates a typical FICO Xpress pipeline. Uses a FICO demonstration model of a stock portfolio optimization",
+      "guid": "969b156d-dd78-57eb-acfd-72fd7a07ec7b",
+      "include_utils": true,
+      "name": "optimization",
+      "path": "src/template_pipelines/config/pipeline_optimization.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_optimization.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_optimization.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-optimization",
+      "utils_paths": [
+        "src/template_pipelines/utils/optimization"
+      ]
+    },
+    "orchestration": {
+      "config_files": [
+        "src/template_pipelines/config/notification_orchestration_email_template.html.j2",
+        "src/template_pipelines/config/config_orchestration.json"
+      ],
+      "desc": "Demonstrates how to orchestrate and scale running multiple pipelines using Rhea orchestration",
+      "guid": "1732ba06-19b1-5ac7-a854-06d5bb036817",
+      "include_utils": false,
+      "name": "orchestration",
+      "path": "src/template_pipelines/config/pipeline_orchestration.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_orchestration.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_orchestration.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-orchestration",
+      "utils_paths": null
+    },
+    "quickstart": {
+      "config_files": [
+        "src/template_pipelines/config/config_quickstart.json"
+      ],
+      "desc": "Simple pipeline, used for our quickstart tutorial. It is not meant to be used as a starting point for real projects.",
+      "guid": "4948762d-edbc-5e4f-8d5e-8ec00c59b077",
+      "include_utils": false,
+      "name": "quickstart",
+      "path": "src/template_pipelines/config/pipeline_quickstart.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_quickstart.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_quickstart.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-quickstart",
+      "utils_paths": null
+    },
+    "realtime_inference": {
+      "config_files": [
+        "src/template_pipelines/config/model_backend_realtime_inference.yml",
+        "src/template_pipelines/config/config_realtime-inference.json",
+        "src/template_pipelines/config/model_set_realtime_inference.yml",
+        "src/template_pipelines/config/model_configuration_realtime_inference.yml"
+      ],
+      "desc": "A general real-time inference pipeline continuously processes incoming data to deliver immediate predictions or decisions.",
+      "guid": "afd3f3a8-772b-540d-aeb3-539589b26ecd",
+      "include_utils": false,
+      "name": "realtime_inference",
+      "path": "src/template_pipelines/config/pipeline_realtime_inference.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_realtime_inference.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_realtime_inference.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-realtime_inference",
+      "utils_paths": null
+    },
+    "rl_advertising": {
+      "config_files": [
+        "src/template_pipelines/config/config_rl-advertising.json"
+      ],
+      "desc": "Demonstrates a simplistic programmatic advertising use case utilizing Reinforcement Learning (RL)",
+      "guid": "8a346a48-ff77-5975-9a29-59a3c39a476b",
+      "include_utils": true,
+      "name": "rl_advertising",
+      "path": "src/template_pipelines/config/pipeline_rl_advertising.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_rl_advertising.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_rl_advertising.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-rl_advertising",
+      "utils_paths": [
+        "src/template_pipelines/utils/rl_advertising"
+      ]
+    },
+    "time_series": {
+      "config_files": [
+        "src/template_pipelines/config/config_time-series.json"
+      ],
+      "desc": "Gives a template pipeline which use time series data and show some mlflow capabilities",
+      "guid": "765c3e4e-15bc-5673-8403-53234612df7f",
+      "include_utils": false,
+      "name": "time_series",
+      "path": "src/template_pipelines/config/pipeline_time_series.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_time_series.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_time_series.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-time_series",
+      "utils_paths": []
+    },
+    "upload_data": {
+      "config_files": [
+        "src/template_pipelines/config/config_upload-data.json"
+      ],
+      "desc": "This pipeline demonstrates how to upload data from a local folder to a remote blob storage on the cloud.",
+      "guid": "a7a1fc98-a4a4-5663-95e5-3e8647e136ac",
+      "include_utils": true,
+      "name": "upload_data",
+      "path": "src/template_pipelines/config/pipeline_upload_data.yml",
+      "platforms": [
+        "DBR",
+        "AML",
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_upload_data.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_upload_data.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-upload_data",
+      "utils_paths": [
+        "src/template_pipelines/utils/upload_data"
+      ]
+    },
+    "vertex_meta": {
+      "config_files": [
+        "src/template_pipelines/config/config_vertex-meta.json"
+      ],
+      "desc": "Demonstrates logging metadata when running pipeline on Vertex AI platform.",
+      "guid": "28ff2a90-8ffe-51b6-be00-b10313575910",
+      "include_utils": false,
+      "name": "vertex_meta",
+      "path": "src/template_pipelines/config/pipeline_vertex_meta.yml",
+      "platforms": [
+        "Vertex",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_vertex_meta.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_vertex_meta.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-vertex_meta",
+      "utils_paths": []
+    },
+    "video_analysis": {
+      "config_files": [
+        "src/template_pipelines/config/config_video-analysis.json"
+      ],
+      "desc": "Demonstrates a general Generative AI pipeline for processing and analyzing videos by leveraging the Gemini model. Beta version",
+      "guid": "cd05a65b-eb97-5f10-9dd2-720df43d3a8c",
+      "include_utils": true,
+      "name": "video_analysis",
+      "path": "src/template_pipelines/config/pipeline_video_analysis.yml",
+      "platforms": [
+        "AML",
+        "Local"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_video_analysis.md"
+      ],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_video_analysis.txt"
+      ],
+      "runtimes_mapping": null,
+      "tags": [],
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-video_analysis",
+      "utils_paths": [
+        "src/template_pipelines/utils/video_analysis"
+      ]
+    },
+    "eda_pipeline": {
+      "config_files": [
+        "src/template_pipelines/config/config_eda-pipeline.json"
+      ],
+      "desc": "Example usage of EDA with PyrogAI framework",
+      "guid": "a3709e49-e99f-56e7-a2d3-f54b72684486",
+      "include_utils": true,
+      "name": "eda_pipeline",
+      "path": "src/template_pipelines/config/pipeline_eda_pipeline.yml",
+      "platforms":  ["AML", "Vertex", "Local", "DBR"],
+      "readme_files": ["src/template_pipelines/README_eda_pipeline.md"],
+      "requirements_files": [
+        "src/template_pipelines/reqs/requirements_eda_pipeline.txt"
+      ],
+      "runtimes_mapping": {
+        "runtime_eda_pipeline": "src/template_pipelines/reqs/requirements_eda_pipeline.txt"
+      },
+      "tags": null,
+      "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-eda_pipeline",
+      "utils_paths": ["src/template_pipelines/utils/eda_pipeline"],
+      "include_tests": true,
+      "test_paths": [
+        "src/template_pipelines/tests/steps/eda_pipeline",
+        "src/template_pipelines/tests/utils/eda_pipeline"
+      ]
+    }
+  }
+}
