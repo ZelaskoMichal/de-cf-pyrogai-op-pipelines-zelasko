@@ -11,8 +11,9 @@ def list_files_in_dir(path: str = "./src/template_pipelines/config/") -> list[st
     return [f for f in listdir(path) if isfile(join(path, f))]
 
 def load_json(index_path: str = "index.json") -> dict:
-    index_file = open(file=index_path, mode="r")
-    return json.load(fp=index_file)
+    with open(file=index_path, mode="r") as index_file:
+        data = json.load(fp=index_file)
+    return data
 
 def open_new_index_file(index_path: str = "index.json"):
     new_index_path = index_path[:-5] + "_new" + index_path[-5:]
@@ -23,8 +24,9 @@ def verify_filename(file: str) -> bool:
 
 def load_config_data(file: str, path: str = "./src/template_pipelines/config/") -> dict:
     config_path = path + file
-    config_file = open(file=config_path, mode="r")
-    return yaml.safe_load(stream=config_file)
+    with open(file=config_path, mode="r") as config_file:
+        data = yaml.safe_load(stream=config_file)
+    return data
 
 def get_platforms(data: dict) -> set:
     if "platforms" in data.keys(): config_platforms = set(data["platforms"])
@@ -156,14 +158,17 @@ def extract_guid(message: str) -> str:
     return message[extracted.end()+1:extracted.end()+37] 
 
 def validate_index_json() -> str:
-    tp_message = run_tp_command()
     guid = None
-    if tp_message.startswith("Index is valid"): 
-        print("index.json is valid")
-    else: 
-        print("index.json validatoin failed")
-        guid = extract_guid(tp_message)
-    print(guid)
+    try:
+        tp_message = run_tp_command()
+        if tp_message.startswith("Index is valid"): 
+            print("index.json is valid")
+        else: 
+            print("index.json validation failed")
+            guid = extract_guid(tp_message)
+        print(guid)
+    except:
+        print(f"'tp validate' command cannot be run. Fill manually guid for added pipelines in indxe.json.")
     return guid
 
 def complete_guid(pipeline: str) -> None:

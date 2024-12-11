@@ -1,0 +1,12 @@
+name: Deploy to DBR
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  echo_name:
+    name: Get job name
+    run: |
+      # Both work:
+      echo "Job name is $GITHUB_JOB"
+      echo "How about ${{ github.jobs[github.job].name }}"

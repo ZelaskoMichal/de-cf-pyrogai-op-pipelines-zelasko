@@ -1,5 +1,5 @@
 name: bq_io
-description: This pipeline demonstrates how use GCP Bigquery IO Slot.
+description: Demonstration how use GCP Bigquery IO Slot.
 experiment: template
 runtime: runtime_bq_io
 compute: small

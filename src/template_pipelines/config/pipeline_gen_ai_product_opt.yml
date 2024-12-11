@@ -1,5 +1,5 @@
 name: gen_ai_product_opt
-description: Demonstrates a general Generative AI pipeline. Uses GenAI/OpenAI LLMs to improve product search visibility. Beta version
+description: Demonstrates
 experiment: exp_ml
 compute: small
 runtime: runtime_gen_ai_product_opt
