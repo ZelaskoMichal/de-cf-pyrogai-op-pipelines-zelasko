@@ -706,8 +706,15 @@
       "include_utils": true,
       "name": "eda_pipeline",
       "path": "src/template_pipelines/config/pipeline_eda_pipeline.yml",
-      "platforms":  ["AML", "Vertex", "Local", "DBR"],
-      "readme_files": ["src/template_pipelines/README_eda_pipeline.md"],
+      "platforms": [
+        "AML",
+        "Vertex",
+        "Local",
+        "DBR"
+      ],
+      "readme_files": [
+        "src/template_pipelines/README_eda_pipeline.md"
+      ],
       "requirements_files": [
         "src/template_pipelines/reqs/requirements_eda_pipeline.txt"
       ],
@@ -716,12 +723,34 @@
       },
       "tags": null,
       "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-eda_pipeline",
-      "utils_paths": ["src/template_pipelines/utils/eda_pipeline"],
+      "utils_paths": [
+        "src/template_pipelines/utils/eda_pipeline"
+      ],
       "include_tests": true,
       "test_paths": [
         "src/template_pipelines/tests/steps/eda_pipeline",
         "src/template_pipelines/tests/utils/eda_pipeline"
       ]
     }
+  },
+  "dq_ge": {
+    "config_files": [],
+    "desc": "Pipeline implementation of Data Quality and Great Expectations",
+    "guid": "",
+    "include_utils": true,
+    "name": "dq_ge",
+    "path": "./src/template_pipelines/config/pipeline_dq_ge.yml",
+    "platforms": [
+      "DBR",
+      "AML",
+      "Vertex",
+      "Local"
+    ],
+    "readme_files": null,
+    "requirements_files": null,
+    "runtimes_mapping": null,
+    "tags": [],
+    "uri": "https://github.com/procter-gamble/de-cf-pyrogai-op-pipelines/blob/main/index.json?pipeline-dq_ge",
+    "utils_paths": null
   }
 }
